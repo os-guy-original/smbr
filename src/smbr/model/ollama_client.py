@@ -1,0 +1,35 @@
+"""Ollama completion client with structured outputs.
+
+Uses Ollama's ``format=<json-schema>`` parameter (grammar-constrained
+decoding) so the model can only emit the fields the harness allows.
+
+Requires a running Ollama server; not exercised in CI (the tests use a stub
+client instead). Install with ``smbr[ollama]``.
+"""
+
+from __future__ import annotations
+
+import json
+
+
+class OllamaCompletionClient:
+    """CompletionClient backed by a local Ollama server."""
+
+    def __init__(self, model: str, host: str | None = None) -> None:
+        import ollama  # imported lazily so the core never depends on it
+
+        self.model = model
+        self._client = ollama.Client(host) if host else ollama.Client()
+
+    def complete_json(self, prompt: str, schema: dict) -> dict:
+        response = self._client.chat(
+            model=self.model,
+            messages=[{"role": "user", "content": prompt}],
+            format=schema,
+        )
+        content = response.message.content
+        data = json.loads(content)
+        if not isinstance(data, dict):
+            msg = f"model returned {type(data).__name__}, expected object"
+            raise TypeError(msg)
+        return data
