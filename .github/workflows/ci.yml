@@ -19,7 +19,7 @@ jobs:
       - name: Install managed Python
         run: uv python install ${{ matrix.python-version }}
       - name: Install
-        run: uv sync
+        run: uv sync --extra ollama
       - name: Lint
         run: uv run ruff check .
       - name: Format
