@@ -7,11 +7,16 @@ place; the model-driven panels arrive with the Phase 1 model backend.
 
 from __future__ import annotations
 
-from typing import ClassVar
+from typing import TYPE_CHECKING, ClassVar
 
+from textual import work
 from textual.app import App, ComposeResult
 from textual.containers import Horizontal, Vertical
 from textual.widgets import Footer, Header, Log, Static
+
+if TYPE_CHECKING:
+    from smbr.agent.loop import SmbrAgent
+    from smbr.kernel.state import Exit
 
 DEFAULT_PLAN = "waiting for clarification / preflight"
 
@@ -70,3 +75,11 @@ class SmbrApp(App):
         """clarification questions surface here, with options and a default"""
         opts = " | ".join(options)
         self.record(f"[ask] {question} ({opts})")
+
+    @work(thread=True, name="smbr-agent")
+    def run_agent(self, agent: SmbrAgent, request: str) -> None:
+        """Drive one request in a worker thread; the UI keeps pumping."""
+        result = agent.run(request)
+        final = "done" if result.exit is Exit.DONE else result.exit.value
+        self.call_from_thread(self.set_step, final)
+        self.call_from_thread(self.record, f"run finished: {final} - {result.reason}")

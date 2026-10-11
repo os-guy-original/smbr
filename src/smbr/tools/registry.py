@@ -10,6 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Protocol
 
+from smbr.config import Settings
 from smbr.preflight.capabilities import Capability
 
 if TYPE_CHECKING:
@@ -92,13 +93,40 @@ def default_registry(*, cwd: str = ".") -> ToolRegistry:
     """The curated v1 core toolset, registered in one place."""
     from smbr.tools.checks import linter_tool, test_runner_tool, type_checker_tool
     from smbr.tools.files import CodeSearchTool, ReadFileTool
+    from smbr.tools.patch import PatchApplyTool
     from smbr.tools.symbols import SymbolLookupTool
 
     registry = ToolRegistry()
     registry.register(ReadFileTool())
     registry.register(CodeSearchTool(cwd=cwd))
     registry.register(SymbolLookupTool())
+    registry.register(PatchApplyTool(cwd=cwd))
     registry.register(test_runner_tool(command=("pytest",), cwd=cwd))
     registry.register(linter_tool(command=("ruff", "check"), cwd=cwd))
     registry.register(type_checker_tool(command=(), cwd=cwd))
+    return registry
+
+
+def registry_from_settings(settings: Settings) -> ToolRegistry:
+    """The registry for one project: check commands come from Settings."""
+    from smbr.tools.checks import (
+        LinterTool,
+        TestRunnerTool,
+        TypeCheckerTool,
+        command_from_str,
+    )
+    from smbr.tools.files import CodeSearchTool, ReadFileTool
+    from smbr.tools.patch import PatchApplyTool
+    from smbr.tools.symbols import SymbolLookupTool
+
+    cwd = str(settings.project_root)
+    registry = ToolRegistry()
+    registry.register(ReadFileTool())
+    registry.register(CodeSearchTool(cwd=cwd))
+    registry.register(SymbolLookupTool())
+    registry.register(PatchApplyTool(cwd=cwd))
+    registry.register(TestRunnerTool(command_from_str(settings.test_command), cwd))
+    registry.register(LinterTool(command_from_str(settings.lint_command), cwd))
+    if settings.typecheck_command.strip():
+        registry.register(TypeCheckerTool(command_from_str(settings.typecheck_command), cwd))
     return registry

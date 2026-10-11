@@ -1,0 +1,12 @@
+{
+  "id": "d1-slugify",
+  "difficulty": 1,
+  "prompt": "Write slugify.py: slugify(text) lowercases the text, replaces every run of characters outside [a-z0-9_] with a single '-', and strips leading and trailing '-'.",
+  "setup": {
+    "test_slugify.py": "from slugify import slugify\n\n\ndef test_slugify_normalises_case_and_punctuation():\n    assert slugify(\"Hello, World!\") == \"hello-world\"\n\n\ndef test_slugify_collapses_and_trims():\n    assert slugify(\"  Two   Spaces  \") == \"two-spaces\"\n\n\ndef test_slugify_keeps_underscores():\n    assert slugify(\"Already-Good_1\") == \"already-good_1\"\n"
+  },
+  "run": "python -m pytest -q",
+  "expect_files": [
+    "slugify.py"
+  ]
+}

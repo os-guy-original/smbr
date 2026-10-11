@@ -1,13 +1,15 @@
-"""Core toolset: files, search, symbols, checks, and the shared registry."""
+"""Core toolset: files, search, symbols, patches, checks, and the shared registry."""
 
 from smbr.tools.checks import (
     CheckResult,
     LinterTool,
     TestRunnerTool,
     TypeCheckerTool,
+    command_from_str,
     run_check,
 )
 from smbr.tools.files import CodeSearchTool, ReadFileTool, read_file, search_files
+from smbr.tools.patch import PatchApplyTool, PatchError
 from smbr.tools.registry import (
     STEP_TOOLS,
     Tool,
@@ -22,6 +24,8 @@ __all__ = [
     "CheckResult",
     "CodeSearchTool",
     "LinterTool",
+    "PatchApplyTool",
+    "PatchError",
     "ReadFileTool",
     "Symbol",
     "SymbolLookupTool",
@@ -30,6 +34,7 @@ __all__ = [
     "ToolHealth",
     "ToolRegistry",
     "TypeCheckerTool",
+    "command_from_str",
     "default_registry",
     "index_source",
     "lookup_symbol",

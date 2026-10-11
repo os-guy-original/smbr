@@ -1,0 +1,12 @@
+{
+  "id": "d4-lru",
+  "difficulty": 4,
+  "prompt": "Write lru.py: LRUCache(capacity) raises ValueError for a capacity below 1, get() refreshes recency and returns None for a missing key, and put() overwrites an existing key while evicting the least recently used one once the cache is over capacity.",
+  "setup": {
+    "test_lru.py": "import pytest\n\nfrom lru import LRUCache\n\n\ndef test_get_returns_none_for_missing_keys():\n    cache = LRUCache(2)\n    cache.put(\"a\", 1)\n    assert cache.get(\"a\") == 1\n    assert cache.get(\"missing\") is None\n\n\ndef test_put_evicts_the_least_recently_used_key():\n    cache = LRUCache(2)\n    cache.put(\"a\", 1)\n    cache.put(\"b\", 2)\n    cache.get(\"a\")\n    cache.put(\"c\", 3)\n    assert cache.get(\"b\") is None\n    assert cache.get(\"a\") == 1\n    assert cache.get(\"c\") == 3\n\n\ndef test_put_overwrites_and_refreshes_recency():\n    cache = LRUCache(2)\n    cache.put(\"a\", 1)\n    cache.put(\"b\", 2)\n    cache.put(\"a\", 10)\n    cache.put(\"c\", 3)\n    assert cache.get(\"a\") == 10\n    assert cache.get(\"b\") is None\n\n\ndef test_capacity_must_be_positive():\n    with pytest.raises(ValueError):\n        LRUCache(0)\n"
+  },
+  "run": "python -m pytest -q",
+  "expect_files": [
+    "lru.py"
+  ]
+}

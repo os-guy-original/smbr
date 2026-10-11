@@ -1,0 +1,12 @@
+{
+  "id": "d2-flatten",
+  "difficulty": 2,
+  "prompt": "Write flatten_lists.py: flatten(items) returns a flat list holding every non-list element of the arbitrarily nested input, in order.",
+  "setup": {
+    "test_flatten.py": "from flatten_lists import flatten\n\n\ndef test_flatten_deeply_nested():\n    assert flatten([1, [2, [3, [4]], 5]]) == [1, 2, 3, 4, 5]\n\n\ndef test_flatten_discards_empty_branches():\n    assert flatten([]) == []\n    assert flatten([[], [[]], [[[]]]]) == []\n\n\ndef test_flatten_one_level():\n    assert flatten([[1], [2]]) == [1, 2]\n"
+  },
+  "run": "python -m pytest -q",
+  "expect_files": [
+    "flatten_lists.py"
+  ]
+}

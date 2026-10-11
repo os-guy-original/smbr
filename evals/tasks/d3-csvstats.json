@@ -1,0 +1,12 @@
+{
+  "id": "d3-csvstats",
+  "difficulty": 3,
+  "prompt": "Write csvstats.py: parse_rows(text) returns the data rows of a comma separated table with the header row dropped, each row a list of cells. column_means(text, columns) returns, per requested column, the mean of its numeric cells; columns with no numeric value are omitted.",
+  "setup": {
+    "test_csvstats.py": "from csvstats import column_means, parse_rows\n\nCSV = \"name,age,score\\nalice,30,90\\nbob,25,80\\n\"\n\n\ndef test_parse_rows_drops_the_header_and_splits_cells():\n    assert parse_rows(CSV) == [[\"alice\", \"30\", \"90\"], [\"bob\", \"25\", \"80\"]]\n\n\ndef test_column_means_averages_numeric_columns():\n    assert column_means(CSV, [\"age\", \"score\"]) == {\"age\": 27.5, \"score\": 85.0}\n\n\ndef test_column_means_skips_columns_without_numbers():\n    assert column_means(CSV, [\"name\"]) == {}\n\n\ndef test_column_means_is_empty_without_data_rows():\n    assert column_means(\"a,b\\n\", [\"a\"]) == {}\n"
+  },
+  "run": "python -m pytest -q",
+  "expect_files": [
+    "csvstats.py"
+  ]
+}

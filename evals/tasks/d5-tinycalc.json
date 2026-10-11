@@ -1,0 +1,14 @@
+{
+  "id": "d5-tinycalc",
+  "difficulty": 5,
+  "prompt": "Write a tinycalc package: tinycalc/__init__.py re-exporting evaluate from tinycalc/parser.py, plus tinycalc/lexer.py tokenising digits, the operators + - * / and parentheses. evaluate(expression) is a recursive-descent evaluator with the usual operator precedence, parentheses and unary minus, raising ValueError on division by zero.",
+  "setup": {
+    "test_tinycalc.py": "import pytest\n\nfrom tinycalc import evaluate\n\n\ndef test_precedence_of_binary_operators():\n    assert evaluate(\"1 + 2 * 3\") == 7\n\n\ndef test_parentheses_and_surrounding_spaces():\n    assert evaluate(\"(1 + 2) * 3\") == 9\n    assert evaluate(\"  10  -  4 / 2 \") == 8\n\n\ndef test_unary_minus():\n    assert evaluate(\"-3 + 5\") == 2\n    assert evaluate(\"2 * -3\") == -6\n\n\ndef test_division_by_zero_raises_value_error():\n    with pytest.raises(ValueError):\n        evaluate(\"1 / 0\")\n"
+  },
+  "run": "python -m pytest -q",
+  "expect_files": [
+    "tinycalc/__init__.py",
+    "tinycalc/lexer.py",
+    "tinycalc/parser.py"
+  ]
+}

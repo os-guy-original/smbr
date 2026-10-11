@@ -42,9 +42,9 @@ dev = ["pytest>=9.1,<10", "ruff>=0.17,<0.18"]
 smbr = "smbr.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/<owner>/smbr"
-Documentation = "https://github.com/<owner>/smbr/tree/main/docs"
-Changelog = "https://github.com/<owner>/smbr/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/os-guy-original/smbr"
+Documentation = "https://github.com/os-guy-original/smbr/tree/main/docs"
+Changelog = "https://github.com/os-guy-original/smbr/blob/main/CHANGELOG.md"
 
 [dependency-groups]
 dev = ["pytest>=9.1,<10", "ruff>=0.17,<0.18"]

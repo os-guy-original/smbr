@@ -4,6 +4,35 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project
 adheres to semantic versioning.
 
+## [Unreleased]
+
+### Added
+
+- **Agent loop (`smbr run`)** — the kernel wired to a local model: all seven
+  steps driven by constrained-JSON questions with fixed schemas, tool results
+  recorded on the session, action and transition gates enforced on every edit,
+  the repair loop feeding failing check output back into patch prompts, and a
+  grounded-claims report.
+- **Patch apply tool** — `git apply`-based unified-diff application (works
+  outside a git repo) with a sandboxed preview; paths escaping the project
+  root are refused.
+- **Model backends** — Ollama client using structured outputs
+  (`format=<json-schema>`, default model `gemma4:e4b`) and an
+  OpenAI-compatible llama.cpp client; both behind the existing
+  `CompletionClient` protocol, selected through Settings.
+- **User ports** — CLI prompts, Textual modal screens for clarification
+  questions and diff approval, and a recording port for tests.
+- **Phase 0 evaluation baseline (`smbr eval`)** — task suite format, runner
+  and scoring: one model call per task, no harness, per-difficulty reporting.
+- Settings for model, host, and timeout (`SMBR_MODEL`, `SMBR_MODEL_HOST`,
+  `SMBR_MODEL_TIMEOUT`).
+
+### Changed
+
+- The verify step now runs the checks configured in Settings and feeds real
+  output into the repair prompt; with nothing configured, preflight reports
+  the tools as unhealthy instead of silently passing.
+
 ## [0.1.0] - 2026-10-11
 
 Initial scaffold, built directly from the design document
@@ -43,4 +72,4 @@ Kernel, gates, preflight and clarification logic are implemented and tested.
 Model backends and the evaluation baseline (Phase 0 of the roadmap) are not
 implemented yet — see `docs/roadmap.md`.
 
-[0.1.0]: https://github.com/<owner>/smbr/releases/tag/v0.1.0
+[0.1.0]: https://github.com/os-guy-original/smbr/releases/tag/v0.1.0

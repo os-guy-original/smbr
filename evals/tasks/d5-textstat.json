@@ -1,0 +1,14 @@
+{
+  "id": "d5-textstat",
+  "difficulty": 5,
+  "prompt": "Write a textstat package: textstat/__init__.py re-exporting top_words and reading_level from textstat/words.py, textstat/stopwords.py holding STOPWORDS (the, a, an, and, or, of, to, in, on, did, not), and textstat/words.py where top_words(text, limit) counts lowercased alphabetic tokens that are not stopwords and returns the top `limit` (count, word) pairs ordered by descending count then alphabetically, and reading_level(text) bands the mean words per sentence into 'simple' (below 4), 'medium' (below 10) or 'complex'.",
+  "setup": {
+    "test_textstat.py": "from textstat import reading_level, top_words\n\nTEXT = (\n    \"The cat sat on the mat. The dog did not sit. \"\n    \"A bird flew past the window and the cat did sleep.\"\n)\n\n\ndef test_top_words_drops_stopwords_and_breaks_ties_alphabetically():\n    assert top_words(TEXT, 3) == [(\"cat\", 2), (\"bird\", 1), (\"dog\", 1)]\n\n\ndef test_top_words_edge_cases():\n    assert top_words(\"\", 3) == []\n    assert top_words(\"cat cat dog\", 1) == [(\"cat\", 2)]\n\n\ndef test_reading_level_bands():\n    assert reading_level(\"One two three. Four five.\") == \"simple\"\n    assert reading_level(\"One two three four five. Six seven eight.\") == \"medium\"\n    assert reading_level(\"One two three four five six seven eight nine ten.\") == \"complex\"\n    assert reading_level(\"\") == \"simple\"\n"
+  },
+  "run": "python -m pytest -q",
+  "expect_files": [
+    "textstat/__init__.py",
+    "textstat/stopwords.py",
+    "textstat/words.py"
+  ]
+}

@@ -25,6 +25,12 @@ class Settings(BaseSettings):
         default_factory=lambda: {"web backend": "Python, FastAPI, SQLite"}
     )
 
+    # Model backend (any Ollama/llama.cpp-served model; constrained JSON via
+    # Ollama's structured outputs)
+    model: str = "gemma4:e4b"
+    model_host: str | None = None
+    model_timeout: float = Field(default=300.0, gt=0)
+
     # Loop budgets
     max_edit_attempts: int = Field(default=3, ge=1, le=10)
     questions_per_round: int = Field(default=3, ge=1, le=5)

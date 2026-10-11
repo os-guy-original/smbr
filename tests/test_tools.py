@@ -39,7 +39,7 @@ def test_registry_health_and_exposure(tmp_path) -> None:
     assert registry.check(Capability.DOCS_LOOKUP).detail == "no tool provides this capability"
 
     edit_tools = registry.expose(Step.EDIT)
-    assert edit_tools == ["file_read", "symbol_lookup"]  # patch_apply not built yet
+    assert edit_tools == ["file_read", "patch_apply", "symbol_lookup"]
     verify_tools = registry.expose(Step.VERIFY)
     # exposure is name-based: type_checker is registered but unconfigured,
     # so it shows up here and is caught by the health check, not the exposure

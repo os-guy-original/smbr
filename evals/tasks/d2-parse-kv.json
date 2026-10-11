@@ -1,0 +1,12 @@
+{
+  "id": "d2-parse-kv",
+  "difficulty": 2,
+  "prompt": "Write kvparse.py: parse_kv(text) splits on ';', drops empty segments, splits each segment on its first '=', strips surrounding whitespace, and coerces 'true'/'false' to bool, integer-looking values to int, decimal-looking values to float, everything else stays a string.",
+  "setup": {
+    "test_kvparse.py": "from kvparse import parse_kv\n\n\ndef test_parse_kv_coerces_scalars():\n    assert parse_kv(\"host=localhost;port=8080;debug=true\") == {\n        \"host\": \"localhost\",\n        \"port\": 8080,\n        \"debug\": True,\n    }\n\n\ndef test_parse_kv_ignores_empty_segments_and_whitespace():\n    assert parse_kv(\"  a = 1 ; ; b=2 \") == {\"a\": 1, \"b\": 2}\n\n\ndef test_parse_kv_edge_cases():\n    assert parse_kv(\"\") == {}\n    assert parse_kv(\"x=1.5\") == {\"x\": 1.5}\n    assert parse_kv(\"flag=false\") == {\"flag\": False}\n"
+  },
+  "run": "python -m pytest -q",
+  "expect_files": [
+    "kvparse.py"
+  ]
+}

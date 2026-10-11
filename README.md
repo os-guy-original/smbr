@@ -8,9 +8,11 @@ once, and get no feedback when they are wrong. SMBR moves reliability out of
 the model and into the harness: the model fills in one small, checkable step
 at a time, and the harness decides whether that step may happen.
 
-> **Status: scaffolding.** The kernel, gates, preflight, clarification and
-> decision-layer logic are implemented and tested (see `docs/roadmap.md`).
-> Model backends and the Phase 0 evaluation baseline are not implemented yet.
+> **Status: working loop.** Kernel, gates, preflight, clarification, decision
+> layer, the wired agent loop and the Phase 0 baseline are implemented and
+> tested. Real-model runs need a local server (`ollama pull gemma4:e4b`); the
+> test suite exercises the loop with scripted model stubs. See
+> [`docs/roadmap.md`](docs/roadmap.md).
 
 ## The six principles
 
@@ -45,30 +47,34 @@ principle wins:
 Every gate is user-overridable, and every override is logged and shown in the
 TUI. Gate messages are harness templates — the model never writes them.
 
-## Quickstart (works today)
+## Quickstart
 
 ```bash
 uv venv --python 3.11+
 uv pip install -e ".[dev]"
+ollama pull gemma4:e4b   # or point SMBR_MODEL at any locally served model
 ```
 
-Parse and check a capability manifest against the real tool registry:
+Run one coding request through the harness — clarification, preflight, plan,
+gated edits, verification, grounded report:
 
 ```bash
-cat > manifest.json <<'JSON'
-{
-  "task": "add input validation to signup form",
-  "requires": [
-    {"capability": "file_read", "why": "inspect current form code"},
-    {"capability": "docs_lookup", "why": "ground the validation library usage"}
-  ]
-}
-JSON
-smbr preflight manifest.json
-# → Preflight stopped: docs_lookup is not installed. …
+smbr run "fix the add function in calc.py"
 ```
 
-Run the TUI skeleton:
+Measure a model with the Phase 0 baseline (no harness, raw scores):
+
+```bash
+smbr eval --suite evals/tasks --out results/baseline.json
+```
+
+Or check a capability manifest against the real tool registry:
+
+```bash
+smbr preflight manifest.json
+```
+
+Run the TUI:
 
 ```bash
 smbr tui
@@ -82,10 +88,12 @@ src/smbr/
 ├── preflight/  # capability enum, manifest parsing, failure types
 ├── clarify/    # slot schemas, extraction validation, question planning
 ├── decisions/  # DecisionProvider protocol, constrained-JSON fallback, router
-├── tools/      # files, search, tree-sitter symbols, pytest/ruff runners
+├── tools/      # files, search, tree-sitter symbols, patch apply, pytest/ruff
 ├── hygiene/    # tree-sitter comment checks on added comments
-├── tui/        # Textual interface
-└── model/      # optional model backends (smbr[ollama])
+├── agent/      # the wired loop: model schemas, user port, backends
+├── evals/      # Phase 0 baseline: task suite, runner, scoring
+├── tui/        # Textual interface + modal screens for asks and approvals
+└── model/      # optional backends (ollama, llamacpp)
 ```
 
 The `kernel/` package is the frozen kernel: gates, the evaluation suite and
@@ -97,6 +105,7 @@ system. Everything else is the mutable layer.
 - [`docs/architecture.md`](docs/architecture.md) — frozen kernel vs mutable layer
 - [`docs/state-machine.md`](docs/state-machine.md) — 7 steps, 3 exits, 1 repair loop
 - [`docs/gates.md`](docs/gates.md) — each gate, its condition, its override path
+- [`docs/agent.md`](docs/agent.md) — the wired loop and the model contract
 - [`docs/roadmap.md`](docs/roadmap.md) — the five phases, the open decisions
 
 ## Development

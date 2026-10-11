@@ -1,0 +1,12 @@
+{
+  "id": "d1-clamp",
+  "difficulty": 1,
+  "prompt": "Write clamp.py: clamp(value, lo, hi) returns value limited to the inclusive range lo..hi, unchanged when already inside it.",
+  "setup": {
+    "test_clamp.py": "from clamp import clamp\n\n\ndef test_clamp_lowers():\n    assert clamp(5, 0, 3) == 3\n    assert clamp(-5, 0, 3) == 0\n\n\ndef test_clamp_passes_through():\n    assert clamp(2, 0, 3) == 2\n    assert clamp(7, 0, 10) == 7\n"
+  },
+  "run": "python -m pytest -q",
+  "expect_files": [
+    "clamp.py"
+  ]
+}

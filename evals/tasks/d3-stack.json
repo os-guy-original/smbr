@@ -1,0 +1,13 @@
+{
+  "id": "d3-stack",
+  "difficulty": 3,
+  "prompt": "stack.py is shipped broken: rewrite it so pop() removes and returns the top item, peek() returns the top item without removing it, and both raise IndexError on an empty stack.",
+  "setup": {
+    "stack.py": "class Stack:\n    \"\"\"Shipped broken: pop and peek raise instead of returning the top item.\"\"\"\n\n    def __init__(self):\n        self._items = []\n\n    def push(self, item):\n        self._items.append(item)\n\n    def pop(self):  # fix this\n        raise NotImplementedError\n\n    def peek(self):  # fix this\n        raise NotImplementedError\n\n    def __len__(self):\n        return len(self._items)\n",
+    "test_stack.py": "import pytest\n\nfrom stack import Stack\n\n\ndef test_push_then_pop_is_lifo():\n    stack = Stack()\n    stack.push(1)\n    stack.push(2)\n    assert stack.pop() == 2\n    assert stack.pop() == 1\n\n\ndef test_peek_leaves_the_stack_alone():\n    stack = Stack()\n    stack.push(\"a\")\n    assert stack.peek() == \"a\"\n    assert len(stack) == 1\n\n\ndef test_pop_on_empty_raises_index_error():\n    with pytest.raises(IndexError):\n        Stack().pop()\n\n\ndef test_peek_on_empty_raises_index_error():\n    with pytest.raises(IndexError):\n        Stack().peek()\n"
+  },
+  "run": "python -m pytest -q",
+  "expect_files": [
+    "stack.py"
+  ]
+}

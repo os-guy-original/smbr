@@ -6,6 +6,7 @@ gate reads these outcomes and the model never gets to interpret them.
 
 from __future__ import annotations
 
+import shlex
 import shutil
 import subprocess
 from dataclasses import dataclass
@@ -90,3 +91,8 @@ def linter_tool(*, command: tuple[str, ...] = ("ruff", "check"), cwd: str = ".")
 
 def type_checker_tool(*, command: tuple[str, ...] = (), cwd: str = ".") -> TypeCheckerTool:
     return TypeCheckerTool(command, cwd)
+
+
+def command_from_str(command: str) -> tuple[str, ...]:
+    """Parse a shell-ish command string into an argv tuple (empty → no-op)."""
+    return tuple(shlex.split(command)) if command.strip() else ()
