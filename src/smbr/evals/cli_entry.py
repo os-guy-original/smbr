@@ -77,11 +77,15 @@ def _print_table(report: BaselineReport) -> None:
     for result in report.results:
         detail = result.error or ("ok" if result.score else _first_line(result.check_output))
         level = f"d{result.difficulty}"
-        print(f"{result.task_id:<20} {level:<3} {result.score:.1f}  {detail}")
+        print(
+            f"{result.task_id:<20} {level:<3} {result.score:.1f}"
+            f"  {result.elapsed_s:>6.1f}s  {detail}"
+        )
     per_level = "  ".join(
         f"d{level}: {score:.2f}" for level, score in report.by_difficulty().items()
     )
     print(f"mean score: {report.mean_score:.2f}  ({per_level})")
+    print(f"mean time per task: {report.mean_elapsed_s:.1f}s")
 
 
 def _first_line(text: str) -> str:

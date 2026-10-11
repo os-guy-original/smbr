@@ -601,13 +601,20 @@ def test_setup_files_land_before_the_model_runs(tmp_path: Path) -> None:
 def test_report_aggregates_mean_and_per_difficulty() -> None:
     report = BaselineReport(
         [
-            TaskResult("a", 1, 1.0, "", 1, None),
-            TaskResult("b", 1, 0.0, "", 0, "boom"),
-            TaskResult("c", 3, 1.0, "", 2, None),
+            TaskResult("a", 1, 1.0, "", 1, None, 1.5),
+            TaskResult("b", 1, 0.0, "", 0, "boom", 2.5),
+            TaskResult("c", 3, 1.0, "", 2, None, 3.0),
         ]
     )
     assert report.mean_score == pytest.approx(2 / 3)
     assert report.by_difficulty() == {1: 0.5, 3: 1.0}
+    # the latency budget is measured per task, never assumed
+    assert report.mean_elapsed_s == pytest.approx(7 / 3)
+
+
+def test_report_defaults_elapsed_when_unmeasured() -> None:
+    report = BaselineReport([TaskResult("a", 2, 1.0, "", 1, None)])
+    assert report.mean_elapsed_s == 0.0
 
 
 def test_empty_report_scores_zero() -> None:
@@ -621,6 +628,7 @@ def test_report_to_json_writes_a_readable_report(tmp_path: Path) -> None:
 
     payload = json.loads(written.read_text(encoding="utf-8"))
     assert payload["mean_score"] == 1.0
+    assert payload["mean_elapsed_s"] == 0.0
     assert payload["by_difficulty"] == {"2": 1.0}
     assert payload["results"] == [
         {
@@ -630,6 +638,7 @@ def test_report_to_json_writes_a_readable_report(tmp_path: Path) -> None:
             "check_output": "1 passed",
             "files_written": 1,
             "error": None,
+            "elapsed_s": 0.0,
         }
     ]
 

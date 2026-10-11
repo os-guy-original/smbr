@@ -55,13 +55,17 @@ uv pip install -e ".[dev]"
 ollama pull gemma4:e4b   # or point SMBR_MODEL at any locally served model
 ```
 
+The project is hardware-agnostic: any model Ollama or llama.cpp can
+serve works. Pick one to match your RAM (see
+[`docs/roadmap.md`](docs/roadmap.md)) — the baseline measures
+time-per-task, so the latency budget is measured, not assumed.
+
 Run one coding request through the harness — clarification, preflight, plan,
 gated edits, verification, grounded report:
 
 ```bash
 smbr run "fix the add function in calc.py"
 ```
-
 Measure a model with the Phase 0 baseline (no harness, raw scores):
 
 ```bash

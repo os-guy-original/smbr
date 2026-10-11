@@ -16,18 +16,32 @@ loop waits until the evaluation is trustworthy.
 (`smbr run`) drives all seven steps with constrained-JSON model calls, real
 tools, action and transition gates, the repair loop, patch approval, and a
 CLI/TUI user port. Phase 0's suite format, runner and scoring exist
-(`smbr eval`); the task set is being grown toward the 20–30 target and the
-baseline run itself is pending a local model server. Phase 3's TUI has the
-live surfaces and modal screens; layout polish remains.
+(`smbr eval`, reporting score and time per task); the task set is being
+grown toward the 20–30 target and the baseline run itself is pending a
+local model server. Phase 3's TUI has the live surfaces and modal screens;
+layout polish remains.
+
+## Hardware and model choice
+
+SMBR is hardware-agnostic by design: it runs on whatever the user's
+machine can serve through Ollama or llama.cpp. The latency budget is a
+per-installation property, so the baseline measures time-per-task instead
+of assuming one. Guidance for picking `SMBR_MODEL`:
+
+| RAM class | Model class | Why |
+| --- | --- | --- |
+| 4–8 GB | 1.5–3B (e.g. `qwen2.5-coder:1.5b`) | Gates stay interactive |
+| 8–16 GB | 7B (e.g. `qwen2.5-coder:7b`) | Default sweet spot |
+| 16–32 GB | 14B–30B MoE (e.g. `qwen3-coder:30b-a3b`) | Higher quality, still fast |
+| 32 GB+ | 32B+ (e.g. `qwen2.5-coder:32b`) | Quality-first |
+
+Slow models multiply the cost of the multi-step loop, so a model that
+answers in seconds is worth more than one that answers in minutes.
 
 ## Open decisions
 
 | Decision | Current default | Alternatives | Status |
 | --- | --- | --- | --- |
 | Implementation language | Python + Textual | Rust or Go single binary | **Resolved: Python** |
-| Hardware and target model size | `gemma4:e4b` via Ollama (override with `SMBR_MODEL`) | qwen2.5-coder 7b/14b, qwen3-coder:30b-a3b | **Default set; hardware still unconfirmed** — it sets the latency budget for every gate |
+| Target model size | `gemma4:e4b` (any served model via `SMBR_MODEL`) | the RAM-class table above | **Resolved: any local model; default is a placeholder** |
 | Language focus for v1 | Python (tree-sitter, pytest, ruff) | TypeScript | **Resolved: Python** |
-
-**Confirm next:** the user's hardware, because it sets the latency budget for
-every gate — especially which decision backend is fast enough to sit in the
-hot path.

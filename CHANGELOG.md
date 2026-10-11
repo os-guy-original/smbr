@@ -29,9 +29,12 @@ adheres to semantic versioning.
 
 ### Changed
 
-- The verify step now runs the checks configured in Settings and feeds real
+- The verify step now runs the checks configured in Settings and feeds the real
   output into the repair prompt; with nothing configured, preflight reports
   the tools as unhealthy instead of silently passing.
+- The Phase 0 baseline now measures wall-clock time per task and reports the
+  mean time per task: the latency budget is a per-installation property of the
+  chosen model, so it is measured, never assumed.
 
 ## [0.1.0] - 2026-10-11
 

@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import shlex
 import tempfile
+import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
@@ -48,6 +49,10 @@ class TaskResult:
     check_output: str
     files_written: int
     error: str | None
+    # Wall-clock seconds for the whole task (model call plus check).
+    # The latency budget is per installation, so it is measured here,
+    # never assumed.
+    elapsed_s: float = 0.0
 
 
 @dataclass
@@ -62,6 +67,12 @@ class BaselineReport:
             return 0.0
         return sum(result.score for result in self.results) / len(self.results)
 
+    @property
+    def mean_elapsed_s(self) -> float:
+        if not self.results:
+            return 0.0
+        return sum(result.elapsed_s for result in self.results) / len(self.results)
+
     def by_difficulty(self) -> dict[int, float]:
         buckets: dict[int, list[float]] = {}
         for result in self.results:
@@ -72,6 +83,7 @@ class BaselineReport:
         """Write the report next to its results, creating parent dirs."""
         payload = {
             "mean_score": round(self.mean_score, 4),
+            "mean_elapsed_s": round(self.mean_elapsed_s, 3),
             "by_difficulty": {str(k): round(v, 4) for k, v in self.by_difficulty().items()},
             "results": [asdict(result) for result in self.results],
         }
@@ -107,6 +119,7 @@ def run_baseline(
 
 
 def _run_task(task: Task, client: CompletionClient, root: Path | None) -> TaskResult:
+    started = time.perf_counter()
     workdir = Path(
         tempfile.mkdtemp(prefix=f"{task.id}-", dir=str(root) if root is not None else None)
     )
@@ -116,11 +129,11 @@ def _run_task(task: Task, client: CompletionClient, root: Path | None) -> TaskRe
     try:
         answer = client.complete_json(_prompt(task), FILE_SCHEMA)
     except Exception as exc:  # a dead backend is a zero, never a crashed run
-        return TaskResult(task.id, task.difficulty, 0.0, "", 0, f"client error: {exc}")
+        return _result(task, 0.0, "", 0, f"client error: {exc}", started)
     try:
         files = _files_from(answer)
     except ValueError as exc:
-        return TaskResult(task.id, task.difficulty, 0.0, "", 0, f"malformed answer: {exc}")
+        return _result(task, 0.0, "", 0, f"malformed answer: {exc}", started)
 
     problems: list[str] = []
     written = 0
@@ -141,7 +154,24 @@ def _run_task(task: Task, client: CompletionClient, root: Path | None) -> TaskRe
         problems.append(unavailable)
     score = 1.0 if passed and not missing else 0.0
     error = "; ".join(problems) if problems else None
-    return TaskResult(task.id, task.difficulty, score, check_output, written, error)
+    return _result(task, score, check_output, written, error, started)
+
+
+def _elapsed(started: float) -> float:
+    return round(time.perf_counter() - started, 3)
+
+
+def _result(
+    task: Task,
+    score: float,
+    check_output: str,
+    written: int,
+    error: str | None,
+    started: float,
+) -> TaskResult:
+    return TaskResult(
+        task.id, task.difficulty, score, check_output, written, error, _elapsed(started)
+    )
 
 
 def _run_check(task: Task, workdir: Path) -> tuple[str, bool, str | None]:

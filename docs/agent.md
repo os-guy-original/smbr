@@ -54,7 +54,9 @@ The loop never touches a terminal directly. Interrupts go through
 
 - Ollama (`smbr[ollama]`), using `format=<json-schema>` for constrained
   decoding. Default model: `gemma4:e4b` (real tag, verified in the Ollama
-  library); override with `SMBR_MODEL` or the `--model` flag where offered.
+  library); override with `SMBR_MODEL`. The project is hardware-agnostic —
+  any served model works; the eval baseline measures time-per-task so the
+  latency budget is measured, not assumed.
 - llama.cpp server (OpenAI-compatible endpoint). **UNVERIFIED against a
   running server** — no server is available in CI; treat the first real run
   as verification.
