@@ -19,10 +19,10 @@ jobs:
       - name: Install managed Python
         run: uv python install ${{ matrix.python-version }}
       - name: Install
-        run: uv pip install --system -e ".[dev]"
+        run: uv sync
       - name: Lint
-        run: ruff check .
+        run: uv run ruff check .
       - name: Format
-        run: ruff format --check .
+        run: uv run ruff format --check .
       - name: Test
-        run: pytest
+        run: uv run pytest
