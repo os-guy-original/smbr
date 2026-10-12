@@ -31,6 +31,10 @@ class Settings(BaseSettings):
     model_host: str | None = None
     model_timeout: float = Field(default=300.0, gt=0)
 
+    # Opt-in MCP servers: JSON config ({"mcpServers": {...}}), empty disables
+    mcp_config: str = ".smbr/mcp.json"
+    mcp_timeout: float = Field(default=30.0, gt=0)
+
     # Loop budgets
     max_edit_attempts: int = Field(default=3, ge=1, le=10)
     questions_per_round: int = Field(default=3, ge=1, le=5)

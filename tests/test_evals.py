@@ -385,6 +385,274 @@ SOLUTIONS: dict[str, dict[str, str]] = {
             '    return re.findall(r"[a-z]+", text.lower())\n'
         ),
     },
+    "d1-celsius": {
+        "celsius.py": "def to_fahrenheit(celsius):\n    return celsius * 9 / 5 + 32\n",
+    },
+    "d1-reverse": {
+        "reverse.py": "def reverse(text):\n    return text[::-1]\n",
+    },
+    "d2-runlength": {
+        "runlength.py": (
+            "def run_length(text):\n"
+            "    runs = []\n"
+            "    index = 0\n"
+            "    while index < len(text):\n"
+            "        char = text[index]\n"
+            "        count = 1\n"
+            "        while index + count < len(text) and text[index + count] == char:\n"
+            "            count += 1\n"
+            "        runs.append((char, count))\n"
+            "        index += count\n"
+            "    return runs\n"
+        ),
+    },
+    "d2-rotate": {
+        "rotate.py": (
+            "def rotate(items, k):\n"
+            "    if not items:\n"
+            "        return []\n"
+            "    shift = k % len(items)\n"
+            "    return items[-shift:] + items[:-shift]\n"
+        ),
+    },
+    "d3-ringbuffer": {
+        "ringbuffer.py": (
+            "class RingBuffer:\n"
+            '    """A fixed-capacity buffer that overwrites its oldest item."""\n'
+            "\n"
+            "    def __init__(self, capacity):\n"
+            "        self._capacity = capacity\n"
+            "        self._items = []\n"
+            "\n"
+            "    def append(self, item):\n"
+            "        self._items.append(item)\n"
+            "        if len(self._items) > self._capacity:\n"
+            "            del self._items[0]\n"
+            "\n"
+            "    def items(self):\n"
+            "        return list(self._items)\n"
+            "\n"
+            "    def __len__(self):\n"
+            "        return len(self._items)\n"
+            "\n"
+            "    def clear(self):\n"
+            "        self._items.clear()\n"
+        ),
+    },
+    "d3-roman": {
+        "roman.py": (
+            "import re\n"
+            "\n"
+            '_NUMERAL = re.compile(r"^M{0,3}(CM|CD|D?C{0,3})'
+            '(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})$")\n'
+            "_VALUES = [\n"
+            '    (1000, "M"),\n'
+            '    (900, "CM"),\n'
+            '    (500, "D"),\n'
+            '    (400, "CD"),\n'
+            '    (100, "C"),\n'
+            '    (90, "XC"),\n'
+            '    (50, "L"),\n'
+            '    (40, "XL"),\n'
+            '    (10, "X"),\n'
+            '    (9, "IX"),\n'
+            '    (5, "V"),\n'
+            '    (4, "IV"),\n'
+            '    (1, "I"),\n'
+            "]\n"
+            "\n\n"
+            "def to_roman(n):\n"
+            "    if not isinstance(n, int) or isinstance(n, bool)"
+            " or not 1 <= n <= 3999:\n"
+            '        raise ValueError("n must be an int in 1..3999")\n'
+            "    parts = []\n"
+            "    for value, numeral in _VALUES:\n"
+            "        while n >= value:\n"
+            "            parts.append(numeral)\n"
+            "            n -= value\n"
+            '    return "".join(parts)\n'
+            "\n\n"
+            "def from_roman(s):\n"
+            "    if not s or not _NUMERAL.match(s):\n"
+            '        raise ValueError(f"not a Roman numeral: {s!r}")\n'
+            "    total = 0\n"
+            "    index = 0\n"
+            "    for value, numeral in _VALUES:\n"
+            "        while s.startswith(numeral, index):\n"
+            "            total += value\n"
+            "            index += len(numeral)\n"
+            "    return total\n"
+        ),
+    },
+    "d4-bst": {
+        "bst.py": (
+            "class _Node:\n"
+            "    def __init__(self, value):\n"
+            "        self.value = value\n"
+            "        self.left = None\n"
+            "        self.right = None\n"
+            "\n\n"
+            "class BinarySearchTree:\n"
+            "    def __init__(self):\n"
+            "        self._root = None\n"
+            "\n"
+            "    def insert(self, value):\n"
+            "        if self._root is None:\n"
+            "            self._root = _Node(value)\n"
+            "            return\n"
+            "        node = self._root\n"
+            "        while True:\n"
+            "            if value < node.value:\n"
+            "                if node.left is None:\n"
+            "                    node.left = _Node(value)\n"
+            "                    return\n"
+            "                node = node.left\n"
+            "            elif value > node.value:\n"
+            "                if node.right is None:\n"
+            "                    node.right = _Node(value)\n"
+            "                    return\n"
+            "                node = node.right\n"
+            "            else:\n"
+            "                return  # duplicate: ignore it\n"
+            "\n"
+            "    def contains(self, value):\n"
+            "        node = self._root\n"
+            "        while node is not None:\n"
+            "            if value < node.value:\n"
+            "                node = node.left\n"
+            "            elif value > node.value:\n"
+            "                node = node.right\n"
+            "            else:\n"
+            "                return True\n"
+            "        return False\n"
+            "\n"
+            "    def inorder(self):\n"
+            "        result = []\n"
+            "\n"
+            "        def walk(node):\n"
+            "            if node is not None:\n"
+            "                walk(node.left)\n"
+            "                result.append(node.value)\n"
+            "                walk(node.right)\n"
+            "\n"
+            "        walk(self._root)\n"
+            "        return result\n"
+            "\n"
+            "    def height(self):\n"
+            "        def walk(node):\n"
+            "            if node is None:\n"
+            "                return 0\n"
+            "            return 1 + max(walk(node.left), walk(node.right))\n"
+            "\n"
+            "        return walk(self._root)\n"
+        ),
+    },
+    "d4-toposort": {
+        "toposort.py": (
+            "import heapq\n"
+            "\n\n"
+            "def order(tasks, dependencies):\n"
+            "    graph = {task: [] for task in tasks}\n"
+            "    indegree = {task: 0 for task in tasks}\n"
+            "    for before, after in dependencies:\n"
+            "        graph[before].append(after)\n"
+            "        indegree[after] += 1\n"
+            "    ready = [task for task in tasks if indegree[task] == 0]\n"
+            "    heapq.heapify(ready)\n"
+            "    result = []\n"
+            "    while ready:\n"
+            "        task = heapq.heappop(ready)\n"
+            "        result.append(task)\n"
+            "        for follower in graph[task]:\n"
+            "            indegree[follower] -= 1\n"
+            "            if indegree[follower] == 0:\n"
+            "                heapq.heappush(ready, follower)\n"
+            "    if len(result) != len(tasks):\n"
+            '        raise ValueError("dependencies contain a cycle")\n'
+            "    return result\n"
+        ),
+    },
+    "d5-logscan": {
+        "logscan/__init__.py": (
+            "from logscan.reader import count_levels, load_entries\n"
+            "from logscan.stats import top_level\n"
+            '\n__all__ = ["count_levels", "load_entries", "top_level"]\n'
+        ),
+        "logscan/reader.py": (
+            "import json\n"
+            "\n\n"
+            "def load_entries(path):\n"
+            "    entries = []\n"
+            '    with open(path, encoding="utf-8") as handle:\n'
+            "        for number, line in enumerate(handle, start=1):\n"
+            "            if not line.strip():\n"
+            "                continue\n"
+            "            try:\n"
+            "                entries.append(json.loads(line))\n"
+            "            except json.JSONDecodeError as exc:\n"
+            '                message = f"line {number} is not valid JSON:'
+            ' {line.strip()}"\n'
+            "                raise ValueError(message) from exc\n"
+            "    return entries\n"
+            "\n\n"
+            "def count_levels(entries):\n"
+            "    counts = {}\n"
+            "    for entry in entries:\n"
+            '        level = entry["level"]\n'
+            "        counts[level] = counts.get(level, 0) + 1\n"
+            "    return counts\n"
+        ),
+        "logscan/stats.py": (
+            "def top_level(entries):\n"
+            "    if not entries:\n"
+            '        raise ValueError("no entries to summarise")\n'
+            "    counts = {}\n"
+            "    for entry in entries:\n"
+            '        level = entry["level"]\n'
+            "        counts[level] = counts.get(level, 0) + 1\n"
+            "    return min(counts, key=lambda level: (-counts[level], level))\n"
+        ),
+    },
+    "d5-store": {
+        "store/__init__.py": (
+            "from store.items import Item\n"
+            "from store.warehouse import Warehouse\n"
+            '\n__all__ = ["Item", "Warehouse"]\n'
+        ),
+        "store/items.py": (
+            "from dataclasses import dataclass\n"
+            "\n\n"
+            "@dataclass(frozen=True)\n"
+            "class Item:\n"
+            "    name: str\n"
+            "    price: float\n"
+        ),
+        "store/warehouse.py": (
+            "class Warehouse:\n"
+            "    def __init__(self):\n"
+            "        self._stock = {}\n"
+            "\n"
+            "    def add(self, item, quantity):\n"
+            "        if quantity < 1:\n"
+            '            raise ValueError("quantity must be at least 1")\n'
+            "        self._stock[item] = self._stock.get(item, 0) + quantity\n"
+            "\n"
+            "    def remove(self, item, quantity):\n"
+            "        if quantity < 1:\n"
+            '            raise ValueError("quantity must be at least 1")\n'
+            "        held = self._stock.get(item, 0)\n"
+            "        if quantity > held:\n"
+            '            raise ValueError(f"not enough stock of {item.name}")\n'
+            "        self._stock[item] = held - quantity\n"
+            "\n"
+            "    def stock(self, item):\n"
+            "        return self._stock.get(item, 0)\n"
+            "\n"
+            "    def total_value(self):\n"
+            "        return sum(item.price * quantity for item, quantity"
+            " in self._stock.items())\n"
+        ),
+    },
 }
 
 

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import textwrap
+
 import pytest
 
 SAMPLE_APP = '''\
@@ -72,3 +74,54 @@ def stub_client_factory():
         return StubClient(answers, boom)
 
     return make
+
+
+# A stand-in MCP server: reads one JSON-RPC message per line and
+# answers initialize, tools/list and tools/call. Real subprocess, real
+# wire code, no MCP SDK.
+FAKE_SERVER = textwrap.dedent(
+    """
+    import json
+    import sys
+
+    for line in sys.stdin:
+        message = json.loads(line)
+        method = message.get("method")
+        if method == "initialize":
+            result = {
+                "protocolVersion": "2025-06-18",
+                "serverInfo": {"name": "fake", "version": "0"},
+            }
+        elif method == "tools/list":
+            result = {
+                "tools": [
+                    {
+                        "name": "echo",
+                        "description": "Echo the text back",
+                        "inputSchema": {
+                            "type": "object",
+                            "properties": {"text": {"type": "string"}},
+                            "required": ["text"],
+                        },
+                    }
+                ]
+            }
+        elif method == "tools/call":
+            text = message["params"]["arguments"].get("text", "")
+            result = {
+                "content": [{"type": "text", "text": f"echo: {text}"}],
+                "isError": False,
+            }
+        else:
+            result = {}
+        response = {"jsonrpc": "2.0", "id": message.get("id"), "result": result}
+        print(json.dumps(response), flush=True)
+    """
+)
+
+
+@pytest.fixture
+def fake_server(tmp_path):
+    script = tmp_path / "fake_mcp_server.py"
+    script.write_text(FAKE_SERVER, encoding="utf-8")
+    return script

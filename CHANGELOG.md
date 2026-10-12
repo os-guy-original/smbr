@@ -8,6 +8,24 @@ adheres to semantic versioning.
 
 ### Added
 
+- **Opt-in MCP servers** (`smbr/mcp/`) — a stdio JSON-RPC client (initialize
+  handshake, `tools/list`, `tools/call`, no SDK dependency), the standard
+  `mcpServers` config format (`.smbr/mcp.json`), and one registry tool per
+  enabled server. Remote tools health-check like built-ins, are exposed
+  per step, and are covered by the declared-capabilities gate through a new
+  `mcp` capability. Servers are spawned per call — no process outlives a
+  call.
+- **A model tool-call channel** — a patch answer may carry up to three
+  `tool_calls` to read-only built-ins or declared MCP tools; each is checked
+  for step exposure and declared capability, and its result is recorded like
+  any tool result. No write path through the channel.
+- **Git tool** — status/log/diff views for the model, plus registry health
+  for the `git` capability.
+- **Safe rollback** — every file is snapshotted before its first edit; a
+  `stuck` exit reports what was tried and offers to restore the run's files
+  to their snapshotted content.
+- Phase 0 eval suite grown from 10 to 20 tasks (four per difficulty level),
+  each verified solvable by a reference solution run in CI.
 - **Agent loop (`smbr run`)** — the kernel wired to a local model: all seven
   steps driven by constrained-JSON questions with fixed schemas, tool results
   recorded on the session, action and transition gates enforced on every edit,

@@ -1,0 +1,12 @@
+{
+  "id": "d1-reverse",
+  "difficulty": 1,
+  "prompt": "Write reverse.py: reverse(text) returns the text with its characters in the opposite order.",
+  "setup": {
+    "test_reverse.py": "from reverse import reverse\n\n\ndef test_reverse_a_word():\n    assert reverse(\"hello\") == \"olleh\"\n\n\ndef test_reverse_keeps_spaces():\n    assert reverse(\"a b c\") == \"c b a\"\n\n\ndef test_reverse_edge_cases():\n    assert reverse(\"\") == \"\"\n    assert reverse(\"x\") == \"x\"\n    assert reverse(\"aba\") == \"aba\"\n"
+  },
+  "run": "python -m pytest -q",
+  "expect_files": [
+    "reverse.py"
+  ]
+}

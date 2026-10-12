@@ -8,6 +8,7 @@ it decides which 3-5 tools the model is shown at each step.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import TYPE_CHECKING, Protocol
 
 from smbr.config import Settings
@@ -15,6 +16,7 @@ from smbr.preflight.capabilities import Capability
 
 if TYPE_CHECKING:
     from smbr.kernel.state import Step
+    from smbr.mcp.server import McpServerTool
 
 
 @dataclass(frozen=True)
@@ -53,9 +55,20 @@ class ToolRegistry:
 
     def __init__(self) -> None:
         self._tools: dict[Capability, Tool] = {}
+        self._mcp: dict[str, McpServerTool] = {}
 
     def register(self, tool: Tool) -> None:
         self._tools[tool.capability] = tool
+
+    def register_mcp(self, server: McpServerTool) -> None:
+        """Register one MCP server: its remote tools by name, and the
+        mcp capability itself, so preflight can see the channel."""
+        self._tools[Capability.MCP] = server
+        for remote in server.remote_tools():
+            self._mcp[remote["name"]] = server
+
+    def mcp_tool_for(self, name: str) -> McpServerTool | None:
+        return self._mcp.get(name)
 
     def check(self, capability: Capability) -> ToolHealth:
         tool = self._tools.get(capability)
@@ -69,7 +82,12 @@ class ToolRegistry:
     def expose(self, step: Step) -> list[str]:
         """Tool names relevant to the current step — never the full list."""
         wanted = STEP_TOOLS[step]
-        return sorted(t.name for cap, t in self._tools.items() if cap in wanted)
+        names = [
+            t.name for cap, t in self._tools.items() if cap in wanted and cap is not Capability.MCP
+        ]
+        if Capability.MCP in wanted:
+            names.extend(sorted(self._mcp))
+        return sorted(names)
 
 
 # Per-step exposure. A long tool list makes small models pick the wrong tool,
@@ -80,8 +98,22 @@ STEP_TOOLS: dict[str, frozenset[Capability]] = {
     "intake": frozenset({Capability.FILE_READ, Capability.CODE_SEARCH, Capability.DOCS_LOOKUP}),
     "clarify": frozenset({Capability.FILE_READ, Capability.CODE_SEARCH}),
     "preflight": frozenset({Capability.FILE_READ}),
-    "plan": frozenset({Capability.CODE_SEARCH, Capability.SYMBOL_LOOKUP, Capability.DOCS_LOOKUP}),
-    "edit": frozenset({Capability.FILE_READ, Capability.SYMBOL_LOOKUP, Capability.PATCH_APPLY}),
+    "plan": frozenset(
+        {
+            Capability.CODE_SEARCH,
+            Capability.SYMBOL_LOOKUP,
+            Capability.DOCS_LOOKUP,
+            Capability.MCP,
+        }
+    ),
+    "edit": frozenset(
+        {
+            Capability.FILE_READ,
+            Capability.SYMBOL_LOOKUP,
+            Capability.PATCH_APPLY,
+            Capability.MCP,
+        }
+    ),
     "verify": frozenset(
         {Capability.TEST_RUNNER, Capability.LINTER, Capability.TYPE_CHECKER, Capability.GIT}
     ),
@@ -108,7 +140,9 @@ def default_registry(*, cwd: str = ".") -> ToolRegistry:
 
 
 def registry_from_settings(settings: Settings) -> ToolRegistry:
-    """The registry for one project: check commands come from Settings."""
+    """The registry for one project: check commands and MCP servers
+    come from Settings."""
+    from smbr.mcp import McpServerTool, load_mcp_config
     from smbr.tools.checks import (
         LinterTool,
         TestRunnerTool,
@@ -116,6 +150,7 @@ def registry_from_settings(settings: Settings) -> ToolRegistry:
         command_from_str,
     )
     from smbr.tools.files import CodeSearchTool, ReadFileTool
+    from smbr.tools.git import GitTool
     from smbr.tools.patch import PatchApplyTool
     from smbr.tools.symbols import SymbolLookupTool
 
@@ -125,8 +160,11 @@ def registry_from_settings(settings: Settings) -> ToolRegistry:
     registry.register(CodeSearchTool(cwd=cwd))
     registry.register(SymbolLookupTool())
     registry.register(PatchApplyTool(cwd=cwd))
+    registry.register(GitTool(cwd=cwd))
     registry.register(TestRunnerTool(command_from_str(settings.test_command), cwd))
     registry.register(LinterTool(command_from_str(settings.lint_command), cwd))
     if settings.typecheck_command.strip():
         registry.register(TypeCheckerTool(command_from_str(settings.typecheck_command), cwd))
+    for server_config in load_mcp_config(Path(cwd) / settings.mcp_config):
+        registry.register_mcp(McpServerTool(server_config, settings.mcp_timeout))
     return registry

@@ -1,0 +1,12 @@
+{
+  "id": "d2-runlength",
+  "difficulty": 2,
+  "prompt": "Write runlength.py: run_length(text) returns one (character, count) pair per run of identical consecutive characters, in order.",
+  "setup": {
+    "test_runlength.py": "from runlength import run_length\n\n\ndef test_collapses_runs():\n    assert run_length(\"aabbbcc\") == [(\"a\", 2), (\"b\", 3), (\"c\", 2)]\n\n\ndef test_single_characters():\n    assert run_length(\"abc\") == [(\"a\", 1), (\"b\", 1), (\"c\", 1)]\n\n\ndef test_one_long_run():\n    assert run_length(\"aaaa\") == [(\"a\", 4)]\n\n\ndef test_empty_text():\n    assert run_length(\"\") == []\n\n\ndef test_runs_are_case_sensitive():\n    assert run_length(\"aAa\") == [(\"a\", 1), (\"A\", 1), (\"a\", 1)]\n"
+  },
+  "run": "python -m pytest -q",
+  "expect_files": [
+    "runlength.py"
+  ]
+}

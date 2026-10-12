@@ -86,6 +86,18 @@ PATCH_SCHEMA: dict = {
         "path": {"type": "string"},
         "diff": {"type": "string"},
         "symbols_used": {"type": "array", "items": {"type": "string"}},
+        "tool_calls": {
+            "type": "array",
+            "maxItems": 3,
+            "items": {
+                "type": "object",
+                "properties": {
+                    "tool": {"type": "string"},
+                    "arguments": {"type": "object"},
+                },
+                "required": ["tool", "arguments"],
+            },
+        },
     },
     "required": ["path", "diff", "symbols_used"],
 }
@@ -145,7 +157,9 @@ def patch_prompt(path: str, before: str, step: str, repair: str = "") -> str:
     repair_block = f"\nRepair feedback from the last verification:\n{repair}\n" if repair else ""
     return (
         f"Produce a minimal unified diff for {path} that accomplishes: {step}. "
-        "Never rewrite the whole file when a small diff suffices.\n"
+        "Never rewrite the whole file when a small diff suffices. "
+        "You may also call exposed tools (name and arguments in tool_calls) "
+        "to look things up before you patch.\n"
         f"{repair_block}\nCurrent contents:\n{before}"
     )
 

@@ -1,0 +1,12 @@
+{
+  "id": "d4-toposort",
+  "difficulty": 4,
+  "prompt": "Write toposort.py: order(tasks, dependencies) returns a valid topological order of the task names, where each (before, after) pair in dependencies means before must come before after, ties are broken alphabetically, and ValueError is raised when the dependencies contain a cycle.",
+  "setup": {
+    "test_toposort.py": "import pytest\n\nfrom toposort import order\n\n\ndef test_order_respects_dependencies():\n    assert order([\"a\", \"b\", \"c\"], [(\"a\", \"b\"), (\"b\", \"c\")]) == [\"a\", \"b\", \"c\"]\n\n\ndef test_order_breaks_ties_alphabetically():\n    assert order([\"banana\", \"apple\", \"cherry\"], []) == [\"apple\", \"banana\", \"cherry\"]\n\n\ndef test_order_sorts_a_diamond():\n    deps = [(\"a\", \"b\"), (\"a\", \"c\"), (\"b\", \"d\"), (\"c\", \"d\")]\n    assert order([\"a\", \"b\", \"c\", \"d\"], deps) == [\"a\", \"b\", \"c\", \"d\"]\n\n\ndef test_order_is_empty_without_tasks():\n    assert order([], []) == []\n\n\ndef test_order_rejects_cycles():\n    with pytest.raises(ValueError):\n        order([\"a\", \"b\"], [(\"a\", \"b\"), (\"b\", \"a\")])\n    with pytest.raises(ValueError):\n        order([\"a\"], [(\"a\", \"a\")])\n"
+  },
+  "run": "python -m pytest -q",
+  "expect_files": [
+    "toposort.py"
+  ]
+}

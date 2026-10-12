@@ -1,0 +1,12 @@
+{
+  "id": "d3-roman",
+  "difficulty": 3,
+  "prompt": "Write roman.py: to_roman(n) converts an int in 1..3999 to its uppercase Roman numeral, raising ValueError outside that range, and from_roman(s) parses a standard subtractive numeral back into an int, raising ValueError on empty, unknown or non-canonical input such as 'IIII'.",
+  "setup": {
+    "test_roman.py": "import pytest\n\nfrom roman import from_roman, to_roman\n\n\ndef test_to_roman_known_values():\n    assert to_roman(1) == \"I\"\n    assert to_roman(4) == \"IV\"\n    assert to_roman(9) == \"IX\"\n    assert to_roman(58) == \"LVIII\"\n    assert to_roman(1994) == \"MCMXCIV\"\n    assert to_roman(3999) == \"MMMCMXCIX\"\n\n\ndef test_to_roman_rejects_out_of_range():\n    with pytest.raises(ValueError):\n        to_roman(0)\n    with pytest.raises(ValueError):\n        to_roman(4000)\n    with pytest.raises(ValueError):\n        to_roman(-7)\n\n\ndef test_from_roman_parses_subtractive_forms():\n    assert from_roman(\"I\") == 1\n    assert from_roman(\"IV\") == 4\n    assert from_roman(\"IX\") == 9\n    assert from_roman(\"LVIII\") == 58\n    assert from_roman(\"MCMXCIV\") == 1994\n\n\ndef test_from_roman_rejects_invalid_input():\n    with pytest.raises(ValueError):\n        from_roman(\"\")\n    with pytest.raises(ValueError):\n        from_roman(\"IIII\")\n    with pytest.raises(ValueError):\n        from_roman(\"ABC\")\n    with pytest.raises(ValueError):\n        from_roman(\"VX\")\n"
+  },
+  "run": "python -m pytest -q",
+  "expect_files": [
+    "roman.py"
+  ]
+}

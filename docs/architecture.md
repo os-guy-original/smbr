@@ -33,6 +33,9 @@ evaluation — tasks the system never sees during tuning.
    score / boolean) with swappable backends.
 3. **The tools** (`tools/`) — the curated core, behind one registry with a
    single health-check entry point.
+4. **Opt-in MCP servers** (`mcp/`) — a stdio JSON-RPC client, the config
+   loader, and one registry tool per enabled server. Remote tools ride the
+   same registry, health check, per-step exposure and gates as built-ins.
 
 ## Model backends
 

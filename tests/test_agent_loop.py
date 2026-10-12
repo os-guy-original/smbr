@@ -7,7 +7,6 @@ real model — every model answer is a fixed dict.
 
 from __future__ import annotations
 
-import difflib
 import sys
 from pathlib import Path
 
@@ -19,83 +18,10 @@ from smbr.agent import (
     SmbrAgent,
     build_decision_router,
 )
-from smbr.agent.prompts import (
-    CLAIMS_SCHEMA,
-    INTAKE_SCHEMA,
-    MANIFEST_SCHEMA,
-    PATCH_SCHEMA,
-    PLAN_SCHEMA,
-)
 from smbr.config import Settings
 from smbr.decisions.provider import DisabledDecisionProvider
 from smbr.kernel.state import Exit
-
-BUGGY = "def add(a, b):\n    return a - b\n"
-FIXED = "def add(a, b):\n    return a + b\n"
-COMMENTED = "def add(a, b):\n    # return a plus b\n    return a + b\n"
-
-TEST_FILE = "def test_add():\n    from calc import add\n\n    assert add(1, 2) == 3\n"
-
-
-def _diff(path: str, before: str, after: str) -> str:
-    return "".join(
-        difflib.unified_diff(
-            before.splitlines(keepends=True),
-            after.splitlines(keepends=True),
-            fromfile=f"a/{path}",
-            tofile=f"b/{path}",
-        )
-    )
-
-
-class ScriptedClient:
-    """Answers each constrained-JSON question by its schema shape."""
-
-    def __init__(self, *, symbols=("add",), target=FIXED, with_comment=False, boom=False) -> None:
-        self.symbols = symbols
-        self.target = target
-        self.with_comment = with_comment
-        self.boom = boom
-        self.patch_calls = 0
-
-    def complete_json(self, prompt: str, schema: dict) -> dict:
-        if self.boom:
-            raise ConnectionError("no model server")
-        if schema == INTAKE_SCHEMA:
-            return {
-                "task_type": "modify_code",
-                "slots": [
-                    {"name": "objective", "value": "fix add", "evidence": "user said it"},
-                    {"name": "location", "value": "calc.py", "evidence": "user said it"},
-                    {"name": "scope", "value": "one function", "evidence": "user said it"},
-                ],
-            }
-        if schema == MANIFEST_SCHEMA:
-            return {
-                "task": "fix add",
-                "requires": [
-                    {"capability": "file_read", "why": "read calc.py"},
-                    {"capability": "symbol_lookup", "why": "confirm add"},
-                    {"capability": "patch_apply", "why": "apply the fix"},
-                    {"capability": "test_runner", "why": "verify"},
-                    {"capability": "linter", "why": "lint"},
-                ],
-            }
-        if schema == PLAN_SCHEMA:
-            return {"steps": [{"what": "fix the subtraction bug", "files": ["calc.py"]}]}
-        if schema == PATCH_SCHEMA:
-            self.patch_calls += 1
-            # the first patch optionally adds a restating comment for hygiene to catch
-            target = COMMENTED if self.with_comment and self.patch_calls == 1 else self.target
-            return {
-                "path": "calc.py",
-                "diff": _diff("calc.py", BUGGY, target),
-                "symbols_used": list(self.symbols),
-            }
-        if schema == CLAIMS_SCHEMA:
-            return {"claims": [{"text": "fixed add", "evidence": ["tool-3: patch_apply calc.py"]}]}
-        msg = f"unexpected schema: {schema}"
-        raise AssertionError(msg)
+from tests_shared import BUGGY, TEST_FILE, ScriptedClient
 
 
 @pytest.fixture

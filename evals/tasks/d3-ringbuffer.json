@@ -1,0 +1,13 @@
+{
+  "id": "d3-ringbuffer",
+  "difficulty": 3,
+  "prompt": "ringbuffer.py is shipped broken: rewrite it so append() adds an item and overwrites the oldest item once the buffer is full, items() returns the held items oldest first, __len__ returns how many items are held, and clear() empties the buffer.",
+  "setup": {
+    "ringbuffer.py": "class RingBuffer:\n    \"\"\"Shipped broken: overflows past capacity, wrong order, clear is a no-op.\"\"\"\n\n    def __init__(self, capacity):\n        self._capacity = capacity\n        self._items = []\n\n    def append(self, item):  # fix this: never overwrites the oldest item\n        self._items.append(item)\n\n    def items(self):  # fix this: returns the newest items first\n        return list(reversed(self._items))\n\n    def __len__(self):\n        return len(self._items)\n\n    def clear(self):  # fix this: does nothing\n        pass\n",
+    "test_ringbuffer.py": "from ringbuffer import RingBuffer\n\n\ndef test_items_are_held_oldest_first():\n    buffer = RingBuffer(3)\n    buffer.append(1)\n    buffer.append(2)\n    assert buffer.items() == [1, 2]\n    assert len(buffer) == 2\n\n\ndef test_append_overwrites_the_oldest_item():\n    buffer = RingBuffer(3)\n    buffer.append(1)\n    buffer.append(2)\n    buffer.append(3)\n    buffer.append(4)\n    assert buffer.items() == [2, 3, 4]\n    assert len(buffer) == 3\n\n\ndef test_clear_empties_the_buffer():\n    buffer = RingBuffer(2)\n    buffer.append(\"a\")\n    buffer.clear()\n    assert buffer.items() == []\n    assert len(buffer) == 0\n\n\ndef test_wraps_repeatedly():\n    buffer = RingBuffer(2)\n    for item in range(7):\n        buffer.append(item)\n    assert buffer.items() == [5, 6]\n"
+  },
+  "run": "python -m pytest -q",
+  "expect_files": [
+    "ringbuffer.py"
+  ]
+}

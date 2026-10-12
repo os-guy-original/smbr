@@ -59,6 +59,9 @@ class Session:
     check_outcomes: dict[str, bool] = field(default_factory=dict)
     overrides: list[GateOverride] = field(default_factory=list)
     edit_attempts: int = 0
+    # File content before this run's first edit, per path — the
+    # rollback set for a stuck run.
+    snapshots: dict[str, str] = field(default_factory=dict)
     # Findings from the comment-hygiene check on the latest patch; non-empty
     # sends the patch back for revision and blocks the move to verify.
     pending_comment_findings: list[str] = field(default_factory=list)

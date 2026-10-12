@@ -1,0 +1,12 @@
+{
+  "id": "d2-rotate",
+  "difficulty": 2,
+  "prompt": "Write rotate.py: rotate(items, k) returns a new list with the elements shifted right by k positions; k may be zero, negative (shifting left) or larger than the list, and the input list is not modified.",
+  "setup": {
+    "test_rotate.py": "from rotate import rotate\n\n\ndef test_shift_right():\n    assert rotate([1, 2, 3, 4, 5], 2) == [4, 5, 1, 2, 3]\n\n\ndef test_negative_shifts_left():\n    assert rotate([1, 2, 3, 4, 5], -2) == [3, 4, 5, 1, 2]\n\n\ndef test_zero_and_full_turns():\n    assert rotate([1, 2, 3], 0) == [1, 2, 3]\n    assert rotate([1, 2, 3], 3) == [1, 2, 3]\n\n\ndef test_shifts_larger_than_the_list_wrap():\n    assert rotate([1, 2], 5) == [2, 1]\n\n\ndef test_empty_list_and_no_mutation():\n    items = [1, 2, 3]\n    assert rotate([], 3) == []\n    assert rotate(items, 1) == [3, 1, 2]\n    assert items == [1, 2, 3]\n"
+  },
+  "run": "python -m pytest -q",
+  "expect_files": [
+    "rotate.py"
+  ]
+}

@@ -38,13 +38,14 @@ from smbr.clarify.slots import (
 )
 from smbr.config import Settings
 from smbr.decisions.provider import CompletionClient, DecisionRouter
-from smbr.hygiene.comments import comment_findings
+from smbr.hygiene.comments import Finding, comment_findings
 from smbr.kernel.gates import GateContext, default_gates
 from smbr.kernel.runner import GateRefusal, Kernel, RunResult
 from smbr.kernel.state import Exit, Step, StepOutcome
+from smbr.preflight.capabilities import Capability
 from smbr.preflight.manifest import ManifestParseError, check_manifest, parse_manifest
 from smbr.tools.checks import command_from_str, run_check
-from smbr.tools.files import read_file
+from smbr.tools.files import read_file, search_files
 from smbr.tools.patch import PatchApplyTool, PatchError
 from smbr.tools.registry import ToolRegistry, registry_from_settings
 from smbr.tools.symbols import index_source, lookup_symbol
@@ -102,12 +103,35 @@ class SmbrAgent:
         self._request = request
         handlers = {step: getattr(self, f"_h_{step.value}") for step in Step}
         try:
-            return self.kernel.run(handlers=handlers)
+            result = self.kernel.run(handlers=handlers)
         except _Halt as exc:
             return self._halted(str(exc))
         except ModelUnavailable as exc:
             self.user.notify(f"model unavailable: {exc}")
             return self._halted(f"model unavailable: {exc}")
+        if result.exit is Exit.STUCK:
+            self._report_stuck(result)
+        return result
+
+    def _report_stuck(self, result: RunResult) -> None:
+        """The clean stuck exit: what was tried, and a rollback offer."""
+        tried = ", ".join(result.tool_calls[-5:]) or "no tool calls"
+        self.user.notify(
+            f"stuck after {self.settings.max_edit_attempts} edit attempts; tried: {tried}"
+        )
+        snapshots = self.kernel.session.snapshots
+        if not snapshots:
+            return
+        choice = self.user.ask(
+            f"roll back the {len(snapshots)} file(s) this run edited?",
+            ["roll back", "keep the changes"],
+        )
+        if not choice.lower().startswith("roll back"):
+            return
+        for path, content in snapshots.items():
+            target = Path(self.settings.project_root, path)
+            target.write_text(content, encoding="utf-8")
+        self.user.notify(f"rolled back {len(snapshots)} file(s)")
 
     # -- model plumbing ---------------------------------------------------
 
@@ -250,13 +274,14 @@ class SmbrAgent:
             patch_prompt(path, before, what, self._repair_context), PATCH_SCHEMA
         )
         diff = str(data.get("diff", ""))
+        self._execute_tool_calls(kernel, data.get("tool_calls"))
         raw_symbols = data.get("symbols_used", [])
         symbols = [str(s) for s in raw_symbols] if isinstance(raw_symbols, list) else []
         after = self.patch_tool.preview(path, diff)
         if after is None:
             self.user.notify(f"patch for {path} did not apply; step skipped")
             return
-        findings = comment_findings(before, after)
+        findings = self._judge_findings(comment_findings(before, after))
         if findings:
             diff, after, findings = self._revise_for_hygiene(path, before, diff, findings)
         kernel.session.pending_comment_findings = [f"{f.kind} at line {f.line}" for f in findings]
@@ -288,6 +313,8 @@ class SmbrAgent:
             return ""
         self._record_tool(f"file_read {path}", f"{len(before.splitlines())} lines read")
         self.kernel.session.read_files.add(path)
+        # Snapshot for rollback: the content before this run's first edit.
+        self.kernel.session.snapshots.setdefault(path, before)
         return before
 
     def _revise_for_hygiene(self, path: str, before: str, diff: str, findings):
@@ -304,6 +331,107 @@ class SmbrAgent:
         if after is None:
             return diff, self.patch_tool.preview(path, diff), findings
         return revised, after, comment_findings(before, after)
+
+    def _execute_tool_calls(self, kernel: Kernel, raw_calls) -> None:
+        """Run the tool calls the model proposed, through the gates.
+
+        Only tools exposed at the edit step may run, and only
+        read-only built-ins plus declared MCP servers — the model
+        never gets a write path through this channel.
+        """
+        calls = raw_calls if isinstance(raw_calls, list) else []
+        exposed = set(self.registry.expose(Step.EDIT))
+        declared = (
+            kernel.session.declared_capabilities | kernel.session.harness_approved_capabilities
+        )
+        for raw in calls[:3]:
+            if not isinstance(raw, dict):
+                self.user.notify("malformed tool call; skipped")
+                continue
+            name = raw.get("tool")
+            arguments = raw.get("arguments")
+            if not isinstance(name, str) or not isinstance(arguments, dict):
+                self.user.notify("malformed tool call; skipped")
+                continue
+            if name not in exposed:
+                self.user.notify(f"tool '{name}' is not exposed at this step; call blocked")
+                continue
+            capability = self._capability_of(name)
+            if capability is None:
+                self.user.notify(f"no such tool '{name}'; call blocked")
+                continue
+            if capability not in declared:
+                self.user.notify(f"capability '{capability.value}' was not declared; call blocked")
+                continue
+            try:
+                output = self._dispatch_tool(name, arguments)
+            except Exception as exc:  # a failed call is feedback, not a crash
+                self.user.notify(f"tool {name} failed: {exc}")
+                continue
+            self._record_tool(name, output[:200])
+
+    def _capability_of(self, name: str) -> Capability | None:
+        """The capability behind one exposed tool name."""
+        if self.registry.mcp_tool_for(name) is not None:
+            return Capability.MCP
+        if name in ("file_read", "code_search", "symbol_lookup"):
+            return Capability(name)
+        return None
+
+    def _dispatch_tool(self, name: str, arguments: dict) -> str:
+        """One read-only tool call: an MCP server or a built-in."""
+        mcp_server = self.registry.mcp_tool_for(name)
+        if mcp_server is not None:
+            return mcp_server.call(name, arguments)
+        root = self.settings.project_root
+        if name == "file_read":
+            path = arguments.get("path")
+            if not isinstance(path, str):
+                msg = "file_read needs a 'path' string"
+                raise ValueError(msg)
+            return read_file(Path(root, path))[:400]
+        if name == "code_search":
+            pattern = arguments.get("pattern")
+            if not isinstance(pattern, str):
+                msg = "code_search needs a 'pattern' string"
+                raise ValueError(msg)
+            hits = search_files(root, pattern)[:20]
+            return "\n".join(hits) or "(no matches)"
+        if name == "symbol_lookup":
+            path = arguments.get("path")
+            symbol = arguments.get("name")
+            if not isinstance(path, str) or not isinstance(symbol, str):
+                msg = "symbol_lookup needs 'path' and 'name' strings"
+                raise ValueError(msg)
+            source = read_file(Path(root, path))
+            found = lookup_symbol(source, symbol)
+            if found is None:
+                return f"{symbol}: not found"
+            return f"{symbol}: {found.kind} at line {found.line}"
+        msg = f"no built-in tool '{name}'"
+        raise ValueError(msg)
+
+    def _judge_findings(self, findings: list[Finding]) -> list[Finding]:
+        """Let the decision layer overrule the restates-code heuristic.
+
+        'Does this comment merely restate the code' is a bounded
+        yes/no question, so it goes to the provider; a low-confidence
+        answer never overrules the heuristic.
+        """
+        if self.router is None:
+            return findings
+        judged: list[Finding] = []
+        for finding in findings:
+            if finding.kind != "restates_code":
+                judged.append(finding)
+                continue
+            decision = self.router.boolean(
+                f"Does the comment '{finding.text.strip()}' merely restate the next line of code?"
+            )
+            if decision.trustworthy and decision.value is False:
+                continue
+            judged.append(finding)
+        return judged
 
     def _passes_action_gates(
         self, kernel: Kernel, path: str, diff: str, symbols: list[str]
@@ -363,7 +491,7 @@ class SmbrAgent:
             try:
                 kernel.guard_action(ctx.action, ctx)
             except GateRefusal as refusal:
-                self.user.notify(refusal.reason)
+                self.user.notify(refusal.result.reason)
             else:
                 grounded.append(text)
         self.user.notify("done: " + ("; ".join(grounded) or "(no grounded claims)"))

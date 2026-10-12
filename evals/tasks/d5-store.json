@@ -1,0 +1,14 @@
+{
+  "id": "d5-store",
+  "difficulty": 5,
+  "prompt": "Write a store package: store/__init__.py re-exporting Item and Warehouse, store/items.py defining an Item dataclass with name and price fields, and store/warehouse.py defining a Warehouse with add(item, quantity) and remove(item, quantity) that raise ValueError for a quantity below 1 (remove also raising ValueError when there is not enough stock), stock(item) returning the quantity held, and total_value() returning the sum of price times quantity.",
+  "setup": {
+    "test_store.py": "import pytest\n\nfrom store import Item, Warehouse\n\n\ndef test_add_tracks_stock_and_value():\n    warehouse = Warehouse()\n    apple = Item(\"apple\", 0.5)\n    warehouse.add(apple, 10)\n    assert warehouse.stock(apple) == 10\n    assert warehouse.total_value() == 5.0\n\n\ndef test_remove_tracks_stock():\n    warehouse = Warehouse()\n    apple = Item(\"apple\", 0.5)\n    warehouse.add(apple, 10)\n    warehouse.remove(apple, 4)\n    assert warehouse.stock(apple) == 6\n    assert warehouse.total_value() == 3.0\n\n\ndef test_stock_is_zero_for_unknown_items():\n    assert Warehouse().stock(Item(\"pear\", 1.0)) == 0\n\n\ndef test_multiple_items_sum_up():\n    warehouse = Warehouse()\n    warehouse.add(Item(\"apple\", 0.5), 10)\n    warehouse.add(Item(\"pear\", 1.25), 4)\n    assert warehouse.total_value() == 10.0\n\n\ndef test_quantity_must_be_positive():\n    warehouse = Warehouse()\n    apple = Item(\"apple\", 0.5)\n    with pytest.raises(ValueError):\n        warehouse.add(apple, 0)\n    with pytest.raises(ValueError):\n        warehouse.remove(apple, -1)\n\n\ndef test_remove_rejects_insufficient_stock():\n    warehouse = Warehouse()\n    apple = Item(\"apple\", 0.5)\n    warehouse.add(apple, 2)\n    with pytest.raises(ValueError):\n        warehouse.remove(apple, 3)\n    with pytest.raises(ValueError):\n        warehouse.remove(Item(\"pear\", 1.0), 1)\n"
+  },
+  "run": "python -m pytest -q",
+  "expect_files": [
+    "store/__init__.py",
+    "store/items.py",
+    "store/warehouse.py"
+  ]
+}

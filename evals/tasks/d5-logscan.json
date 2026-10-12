@@ -1,0 +1,17 @@
+{
+  "id": "d5-logscan",
+  "difficulty": 5,
+  "prompt": "Write a logscan package: logscan/__init__.py re-exporting load_entries, count_levels and top_level, logscan/reader.py where load_entries(path) reads a log file of one JSON object per line (skipping blank lines and raising ValueError on a line that is not valid JSON) and count_levels(entries) maps each entry's level to its number of occurrences, and logscan/stats.py where top_level(entries) returns the level with the highest count, breaking ties alphabetically and raising ValueError when there are no entries.",
+  "setup": {
+    "app.log": "{\"ts\": \"2026-01-01T10:00:00\", \"level\": \"INFO\", \"msg\": \"started\"}\n{\"ts\": \"2026-01-01T10:00:05\", \"level\": \"WARN\", \"msg\": \"slow query\"}\n{\"ts\": \"2026-01-01T10:00:06\", \"level\": \"WARN\", \"msg\": \"slow query\"}\n{\"ts\": \"2026-01-01T10:00:07\", \"level\": \"ERROR\", \"msg\": \"boom\"}\n",
+    "blank.log": "{\"ts\": \"2026-01-01T11:00:00\", \"level\": \"INFO\", \"msg\": \"one\"}\n\n{\"ts\": \"2026-01-01T11:00:01\", \"level\": \"INFO\", \"msg\": \"two\"}\n",
+    "bad.log": "{\"ts\": \"2026-01-01T12:00:00\", \"level\": \"INFO\", \"msg\": \"fine\"}\nnot json\n",
+    "test_logscan.py": "import pytest\n\nfrom logscan import count_levels, load_entries, top_level\n\n\ndef test_load_entries_parses_each_line():\n    entries = load_entries(\"app.log\")\n    assert entries[0] == {\"ts\": \"2026-01-01T10:00:00\", \"level\": \"INFO\", \"msg\": \"started\"}\n    assert len(entries) == 4\n\n\ndef test_load_entries_skips_blank_lines():\n    entries = load_entries(\"blank.log\")\n    assert len(entries) == 2\n    assert entries[1][\"msg\"] == \"two\"\n\n\ndef test_count_levels_counts_occurrences():\n    assert count_levels(load_entries(\"app.log\")) == {\"INFO\": 1, \"WARN\": 2, \"ERROR\": 1}\n\n\ndef test_top_level_picks_the_most_frequent():\n    assert top_level(load_entries(\"app.log\")) == \"WARN\"\n\n\ndef test_top_level_breaks_ties_alphabetically():\n    assert top_level([{\"level\": \"WARN\"}, {\"level\": \"INFO\"}]) == \"INFO\"\n\n\ndef test_top_level_rejects_empty_entries():\n    with pytest.raises(ValueError):\n        top_level([])\n\n\ndef test_load_entries_rejects_malformed_lines():\n    with pytest.raises(ValueError):\n        load_entries(\"bad.log\")\n"
+  },
+  "run": "python -m pytest -q",
+  "expect_files": [
+    "logscan/__init__.py",
+    "logscan/reader.py",
+    "logscan/stats.py"
+  ]
+}

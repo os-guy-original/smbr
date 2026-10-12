@@ -1,0 +1,12 @@
+{
+  "id": "d1-celsius",
+  "difficulty": 1,
+  "prompt": "Write celsius.py: to_fahrenheit(celsius) converts a Celsius temperature to Fahrenheit with the formula celsius * 9 / 5 + 32.",
+  "setup": {
+    "test_celsius.py": "from celsius import to_fahrenheit\n\n\ndef test_freezing_and_boiling_points():\n    assert to_fahrenheit(0) == 32.0\n    assert to_fahrenheit(100) == 212.0\n\n\ndef test_negative_temperatures():\n    assert to_fahrenheit(-40) == -40.0\n    assert to_fahrenheit(-10) == 14.0\n\n\ndef test_whole_temperatures():\n    assert to_fahrenheit(25) == 77.0\n    assert to_fahrenheit(5) == 41.0\n"
+  },
+  "run": "python -m pytest -q",
+  "expect_files": [
+    "celsius.py"
+  ]
+}

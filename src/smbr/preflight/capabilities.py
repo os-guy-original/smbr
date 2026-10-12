@@ -21,6 +21,10 @@ class Capability(StrEnum):
     TYPE_CHECKER = "type_checker"
     GIT = "git"
     DOCS_LOOKUP = "docs_lookup"
+    # Opt-in MCP servers: one enum member for the whole channel, so
+    # grammar-constrained decoding stays closed while any enabled
+    # server's tools ride the same gated path.
+    MCP = "mcp"
     UNKNOWN_CAPABILITY = "unknown_capability"
 
 

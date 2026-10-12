@@ -78,6 +78,31 @@ Or check a capability manifest against the real tool registry:
 smbr preflight manifest.json
 ```
 
+### Opt-in MCP servers
+
+MCP servers are optional extras. Write `.smbr/mcp.json` in the project root —
+the same shape other MCP hosts use — and only servers you explicitly enable
+are started:
+
+```json
+{
+  "mcpServers": {
+    "github": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": {"GITHUB_TOKEN": "..."},
+      "enabled": true
+    }
+  }
+}
+```
+
+A server's tools are registered under the `mcp` capability, so preflight
+health-checks them like any built-in and the model must declare `mcp` in its
+manifest to call them. The model reaches them through the same tool-call
+channel as built-ins (see [`docs/agent.md`](docs/agent.md)) — nothing is
+exposed all at once.
+
 Run the TUI:
 
 ```bash
@@ -92,7 +117,8 @@ src/smbr/
 ├── preflight/  # capability enum, manifest parsing, failure types
 ├── clarify/    # slot schemas, extraction validation, question planning
 ├── decisions/  # DecisionProvider protocol, constrained-JSON fallback, router
-├── tools/      # files, search, tree-sitter symbols, patch apply, pytest/ruff
+├── tools/      # files, search, tree-sitter symbols, patch apply, pytest/ruff, git
+├── mcp/        # opt-in MCP servers: stdio client, config, registry tool
 ├── hygiene/    # tree-sitter comment checks on added comments
 ├── agent/      # the wired loop: model schemas, user port, backends
 ├── evals/      # Phase 0 baseline: task suite, runner, scoring
