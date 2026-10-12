@@ -9,6 +9,7 @@ cites nothing halts the run — the harness never fills the gap with a guess.
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -78,12 +79,14 @@ class SmbrAgent:
         user: UserPort,
         registry: ToolRegistry | None = None,
         router: DecisionRouter | None = None,
+        on_step: Callable[[str], None] | None = None,
     ) -> None:
         self.settings = settings
         self.client = client
         self.user = user
         self.registry = registry or registry_from_settings(settings)
         self.router = router
+        self.on_step = on_step
         self.patch_tool = PatchApplyTool(cwd=str(settings.project_root))
         self.gates = default_gates(self._required_checks())
         self.kernel = Kernel(
@@ -101,7 +104,7 @@ class SmbrAgent:
 
     def run(self, request: str) -> RunResult:
         self._request = request
-        handlers = {step: getattr(self, f"_h_{step.value}") for step in Step}
+        handlers = {step: self._reporting(step, getattr(self, f"_h_{step.value}")) for step in Step}
         try:
             result = self.kernel.run(handlers=handlers)
         except _Halt as exc:
@@ -112,6 +115,16 @@ class SmbrAgent:
         if result.exit is Exit.STUCK:
             self._report_stuck(result)
         return result
+
+    def _reporting(self, step: Step, handler) -> Callable:
+        """Announce every step transition so a UI can follow along live."""
+
+        def wrapped(kernel: Kernel):
+            if self.on_step is not None:
+                self.on_step(step.value)
+            return handler(kernel)
+
+        return wrapped
 
     def _report_stuck(self, result: RunResult) -> None:
         """The clean stuck exit: what was tried, and a rollback offer."""
@@ -263,7 +276,10 @@ class SmbrAgent:
     def _h_edit(self, kernel: Kernel) -> StepOutcome | None:
         if not self._plan:
             raise _Halt("edit step has no plan")
-        for step in self._plan:
+        total = len(self._plan)
+        for index, step in enumerate(self._plan, start=1):
+            if self.on_step is not None and total:
+                self.on_step(f"edit ({index}/{total})")
             for path in step.files:
                 self._edit_path(kernel, path, step.what)
         return None

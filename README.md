@@ -155,10 +155,14 @@ Run the TUI:
 smbr tui
 ```
 
-The TUI takes a request in the bottom input (Enter runs it), shows the live
-step and plan on the left, and every harness message — tool calls, gate
-results, warnings — in the event log. Clarification questions and patch
-approvals arrive as modal screens.
+The TUI takes a request in the bottom input (Enter runs it). The screen is
+built to answer three questions at a glance — *where is the run*, *what just
+happened to it*, *what is being asked of me*:
+
+- **Status line** — current step, plan progress (`edit 1/2`), running/idle, elapsed time, model, `q` to quit.
+- **Left pane** — the current step and the plan.
+- **Transcript** — every harness message, styled by what it means: tools dim, gate passes green, gate failures and refusals red, questions yellow, overrides magenta, the final line bold.
+- **Modals** — keyboard-first: number keys pick a clarification option, `a` approves a patch, `r` rejects it. The approval screen scrolls and colourises the diff (`+` green / `-` red) with a `+added −removed` summary and any hygiene findings.
 
 To try the whole flow without a model server, the demo mode drives a canned
 model through clarification, preflight, a patch approval, verification and a

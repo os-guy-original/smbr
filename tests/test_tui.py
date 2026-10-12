@@ -11,7 +11,7 @@ import asyncio
 import sys
 
 import pytest
-from textual.widgets import Button, Input, Static
+from textual.widgets import Button, Input, RichLog, Static
 
 from smbr.agent.demo import DEMO_FILE
 from smbr.tui import ApprovalScreen, QuestionScreen, SmbrApp
@@ -82,7 +82,7 @@ async def _drive(app: SmbrApp, pilot) -> None:
             app.screen.query_one("#opt-0", Button).press()
             await pilot.pause()
         elif isinstance(app.screen, ApprovalScreen):
-            app.screen.query_one("#approve", Button).press()
+            await pilot.press("a")  # approve
             await pilot.pause()
     await pilot.pause()
 
@@ -125,6 +125,22 @@ def test_the_question_screen_dismisses_with_the_chosen_option(project) -> None:
     assert asyncio.run(main(app)) == "b"
 
 
+def test_the_question_screen_takes_a_number_key(project) -> None:
+    async def main(app: SmbrApp) -> str:
+        from concurrent.futures import Future
+
+        async with app.run_test() as pilot:
+            outcome: Future[str] = Future()
+            app.push_screen(QuestionScreen("pick one", ["a", "b"]), outcome.set_result)
+            await pilot.pause()
+            await pilot.press("2")
+            await pilot.pause()
+            return outcome.result()
+
+    app = SmbrApp()
+    assert asyncio.run(main(app)) == "b"
+
+
 def test_the_approval_screen_can_reject(project) -> None:
     async def main(app: SmbrApp) -> bool:
         from concurrent.futures import Future
@@ -133,12 +149,45 @@ def test_the_approval_screen_can_reject(project) -> None:
             outcome: Future[bool] = Future()
             app.push_screen(ApprovalScreen("x.py", "--- a/x.py", []), outcome.set_result)
             await pilot.pause()
-            app.screen.query_one("#reject", Button).press()
+            await pilot.press("r")
             await pilot.pause()
             return outcome.result()
 
     app = SmbrApp()
     assert asyncio.run(main(app)) is False
+
+
+def test_the_approval_screen_approves_with_a_key(project) -> None:
+    async def main(app: SmbrApp) -> bool:
+        from concurrent.futures import Future
+
+        async with app.run_test() as pilot:
+            outcome: Future[bool] = Future()
+            app.push_screen(ApprovalScreen("x.py", "--- a/x.py", []), outcome.set_result)
+            await pilot.pause()
+            await pilot.press("a")
+            await pilot.pause()
+            return outcome.result()
+
+    app = SmbrApp()
+    assert asyncio.run(main(app)) is True
+
+
+def test_the_approval_screen_lays_out_without_overlap(project) -> None:
+    async def main(app: SmbrApp) -> list[str]:
+        async with app.run_test(size=(100, 30)) as pilot:
+            diff = "\n".join(f"+line {i}" for i in range(80))
+            app.push_screen(ApprovalScreen("calc.py", diff, ["restates_code at line 4"]))
+            await pilot.pause()
+            dialog = app.screen.query_one("#approval-dialog")
+            hint = app.screen.query_one("#approval-hint")
+            a, b = dialog.region, hint.region
+            overlap_y = max(0, min(a.y + a.height, b.y + b.height) - max(a.y, b.y))
+            overlap_x = max(0, min(a.x + a.width, b.x + b.width) - max(a.x, b.x))
+            return [f"{overlap_x}x{overlap_y}" if overlap_x and overlap_y else "clean"]
+
+    app = SmbrApp()
+    assert asyncio.run(main(app)) == ["clean"]
 
 
 def test_typing_a_request_starts_a_run(project) -> None:
@@ -181,6 +230,75 @@ def test_nothing_overlaps_at_any_terminal_size(project, size) -> None:
 
     app = SmbrApp()
     assert asyncio.run(main(app)) == []
+
+
+def test_message_kinds_are_visually_distinct(project, monkeypatch) -> None:
+    written: list[str] = []
+    original = RichLog.write
+
+    def spy(self, content, *args, **kwargs):  # capture what the log is handed
+        written.append(str(content))
+        return original(self, content, *args, **kwargs)
+
+    monkeypatch.setattr(RichLog, "write", spy)
+
+    async def main(app: SmbrApp) -> list[str]:
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            app.record("[tool] file_read calc.py -> 2 lines read")
+            app.record("[gate:PASS] read_before_edit — read in this session")
+            app.record("[gate:FAIL] symbol_check — ghost unconfirmed")
+            app.record("[answer] one file")
+            app.record("stuck after 3 edit attempts")
+            await pilot.pause()
+            return list(written)
+
+    app = SmbrApp()
+    lines = asyncio.run(main(app))
+
+    def line_with(prefix: str) -> str:
+        return next((line for line in lines if prefix in line), "missing")
+
+    # a tool result is dim, a failure is red — never the same face
+    assert "[dim]" in line_with("[tool]")
+    assert "[red]" in line_with("[gate:FAIL]")
+    assert "[green]" in line_with("[gate:PASS]")
+    assert "[cyan]" in line_with("[answer]")
+    assert "[bold yellow]" in line_with("stuck")
+
+
+def test_the_status_line_tracks_the_step_and_running_state(project) -> None:
+    async def main(app: SmbrApp) -> list[str]:
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            idle = str(app.query_one("#status", Static).render())
+            app.set_step("edit")
+            app.set_plan_progress(2, 3)
+            app._busy = True
+            app._render_status()
+            await pilot.pause()
+            return [idle, str(app.query_one("#status", Static).render())]
+
+    app = SmbrApp(demo=True)
+    idle, running = asyncio.run(main(app))
+    assert "intake" in idle and "idle" in idle
+    assert "edit" in running and "plan 2/3" in running and "running" in running
+    assert "demo" in running
+
+
+def test_the_demo_flow_reports_steps_live(project) -> None:
+    async def main(app: SmbrApp) -> tuple[str, list[str]]:
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            # before the user answers, the run is already in clarify
+            await _drive(app, pilot)
+            return app.step, _log_lines(app)
+
+    app = SmbrApp(request="leave a demo note", demo=True)
+    step, lines = asyncio.run(main(app))
+    assert "— clarify —" in lines
+    assert "— edit (1/1) —" in lines
+    assert step == "done"
 
 
 def test_long_lines_wrap_instead_of_spilling(project) -> None:

@@ -76,6 +76,16 @@ adheres to semantic versioning.
 
 ### Changed
 
+- **The TUI was rebuilt around what a user needs to see.** Every message now
+  carries its kind — tools dim, gate passes green, gate failures and refusals
+  red, questions yellow, overrides magenta, the final line bold — instead of
+  one undifferentiated log where a refusal looked like a tool result. A status
+  line shows the step, plan progress, running state, elapsed time and model;
+  step transitions are reported live by the agent (including `edit 1/2`), not
+  only at the end. The approval and question screens are keyboard-first
+  (`a`/`r`, number keys) and the diff scrolls, colourises and reports
+  `+added -removed`.
+
 - The verify step now runs the checks configured in Settings and feeds the real
   output into the repair prompt; with nothing configured, preflight reports
   the tools as unhealthy instead of silently passing.
