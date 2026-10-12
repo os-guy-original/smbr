@@ -71,18 +71,27 @@ class TuiUser:
         self.app = app
 
     def ask(self, question: str, options: list[str]) -> str:
+        opts = " | ".join(options)
+        self.app.call_from_thread(self.app.record, f"[ask] {question} ({opts})")
         future: Future[str] = Future()
         self.app.call_from_thread(
             self.app.push_screen, QuestionScreen(question, options), future.set_result
         )
-        return future.result()
+        answer = future.result()
+        self.app.call_from_thread(self.app.record, f"[answer] {answer}")
+        return answer
 
     def notify(self, message: str) -> None:
         self.app.call_from_thread(self.app.record, message)
 
     def approve_patch(self, path: str, diff: str, findings: list[str]) -> bool:
+        self.app.call_from_thread(self.app.record, f"[ask] approve the patch for {path}?")
         future: Future[bool] = Future()
         self.app.call_from_thread(
             self.app.push_screen, ApprovalScreen(path, diff, findings), future.set_result
         )
-        return future.result()
+        approved = future.result()
+        self.app.call_from_thread(
+            self.app.record, f"[answer] {'approved' if approved else 'rejected'}: {path}"
+        )
+        return approved

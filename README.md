@@ -155,6 +155,24 @@ Run the TUI:
 smbr tui
 ```
 
+The TUI takes a request in the bottom input (Enter runs it), shows the live
+step and plan on the left, and every harness message — tool calls, gate
+results, warnings — in the event log. Clarification questions and patch
+approvals arrive as modal screens.
+
+To try the whole flow without a model server, the demo mode drives a canned
+model through clarification, preflight, a patch approval, verification and a
+grounded report:
+
+```bash
+smbr tui --demo                      # auto-runs; click through the screens
+smbr tui --request "leave a note"    # start a specific request on launch
+```
+
+The demo leaves one disposable `smbr-demo-note.txt` in the project root.
+Without `--demo` a run uses the configured backend, so it needs a model
+(Ollama, llama.cpp, or an API key from the section above).
+
 ## Layout
 
 ```

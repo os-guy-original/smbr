@@ -87,10 +87,11 @@ def _cmd_eval(args: argparse.Namespace) -> int:
     return run_eval(args.eval_args)
 
 
-def _cmd_tui(_: argparse.Namespace) -> int:
+def _cmd_tui(args: argparse.Namespace) -> int:
     from smbr.tui import SmbrApp
 
-    SmbrApp().run()
+    app = SmbrApp(request=args.request, demo=args.demo)
+    app.run()
     return 0
 
 
@@ -151,7 +152,18 @@ def build_parser() -> argparse.ArgumentParser:
     skl = sub.add_parser("skills", help="list imported skills with their provenance")
     skl.set_defaults(func=_cmd_skills)
 
-    sub.add_parser("tui", help="launch the TUI").set_defaults(func=_cmd_tui)
+    tui = sub.add_parser("tui", help="launch the TUI")
+    tui.add_argument(
+        "--request",
+        default=None,
+        help="run this request as soon as the interface is up",
+    )
+    tui.add_argument(
+        "--demo",
+        action="store_true",
+        help="drive the run with a canned model, so the flow needs no server",
+    )
+    tui.set_defaults(func=_cmd_tui)
     return parser
 
 

@@ -21,6 +21,12 @@ adheres to semantic versioning.
 - **Per-step exposure budget** — `MAX_EXPOSED_TOOLS` caps the tool names a
   step exposes, so one verbose MCP server cannot blow the 3-5 guidance that
   per-step exposure exists to enforce.
+- **A runnable TUI** — `smbr tui` now takes a request (bottom input, or
+  `--request`) and drives a real agent run: clarification questions and patch
+  approvals are modal screens, harness messages stream into the event log,
+  and every question and answer is recorded for audit. `smbr tui --demo`
+  runs the whole flow on a canned model, so the interface is testable with no
+  model server. The Textual Pilot test suite drives the same path in CI.
 - **OpenAI-compatible API backend** (`smbr/model/openai_client.py`) — the same
   constrained-JSON model calls against any hosted chat-completions endpoint
   (OpenRouter, OpenAI, Groq, Together, a self-hosted vLLM), so a machine
@@ -76,6 +82,16 @@ adheres to semantic versioning.
 - The Phase 0 baseline now measures wall-clock time per task and reports the
   mean time per task: the latency budget is a per-installation property of the
   chosen model, so it is measured, never assumed.
+
+### Fixed
+
+- The patch tool's preview rejected every diff that **creates a file** (it
+  pre-created an empty sandbox copy, so `git apply` refused), which made the
+  agent loop silently skip new-file patches while `apply` accepted them. New
+  files now preview and apply identically, and `apply` creates missing parent
+  directories.
+- `SmbrApp.run_agent` referenced `Exit` without importing it — unreachable
+  before, because nothing ever started a run from the interface.
 
 ## [0.1.0] - 2026-10-11
 

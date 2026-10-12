@@ -34,6 +34,16 @@ def _safe_target(cwd: str, path: str) -> Path:
     return resolved
 
 
+def _creates_file(diff: str) -> bool:
+    """True when the diff adds a file rather than changing one.
+
+    ``git apply`` creates such a file itself, so the preview must not
+    pre-create an empty one — that made every new-file patch look like
+    it did not apply.
+    """
+    return "--- /dev/null" in diff
+
+
 class PatchApplyTool:
     name = "patch_apply"
     capability = Capability.PATCH_APPLY
@@ -52,7 +62,7 @@ class PatchApplyTool:
         """Apply the diff to a throwaway copy and return the new content.
 
         None means the diff did not apply — the caller reports that instead of
-        applying anything to the working tree.
+        proposing anything to the user.
         """
         with tempfile.TemporaryDirectory(prefix="smbr-preview-") as tmp:
             sandbox = Path(tmp)
@@ -61,12 +71,14 @@ class PatchApplyTool:
             except PatchError:
                 return None
             target.parent.mkdir(parents=True, exist_ok=True)
-            try:
-                target.write_text(
-                    Path(self.cwd, path).read_text(encoding="utf-8"), encoding="utf-8"
-                )
-            except OSError:
-                target.write_text("", encoding="utf-8")
+            if not _creates_file(diff):
+                # an existing file: seed the sandbox with its content
+                try:
+                    existing = Path(self.cwd, path).read_text(encoding="utf-8")
+                except OSError:
+                    existing = ""
+                target.write_text(existing, encoding="utf-8")
+            # else: git apply creates it, exactly as it does on the real tree
             if not self._git_apply(sandbox, diff):
                 return None
             try:
@@ -77,6 +89,9 @@ class PatchApplyTool:
     def apply(self, path: str, diff: str) -> str:
         """Apply the diff to the real working tree; returns the new content."""
         target = _safe_target(self.cwd, path)
+        if not target.parent.exists():
+            # a patch adding a file in a new directory needs the directory
+            target.parent.mkdir(parents=True, exist_ok=True)
         if not self._git_apply(Path(self.cwd), diff):
             msg = f"patch for {path} did not apply"
             raise PatchError(msg)
