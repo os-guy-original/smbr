@@ -36,7 +36,11 @@ def run_eval(argv: list[str]) -> int:
         print(f"smbr: no tasks in {args.suite}", file=sys.stderr)
         return 2
 
-    client = _build_client(args.model)
+    try:
+        client = _build_client(args.model)
+    except ValueError as exc:  # e.g. openai backend without an API key
+        print(f"smbr: {exc}", file=sys.stderr)
+        return 2
     report = run_baseline(tasks, client)
     _print_table(report)
     if args.out:

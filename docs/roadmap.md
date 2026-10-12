@@ -24,9 +24,11 @@ layout polish remains.
 ## Hardware and model choice
 
 SMBR is hardware-agnostic by design: it runs on whatever the user's
-machine can serve through Ollama or llama.cpp. The latency budget is a
-per-installation property, so the baseline measures time-per-task instead
-of assuming one. Guidance for picking `SMBR_MODEL`:
+machine can serve through Ollama or llama.cpp, or — for machines that
+cannot serve a model — on any OpenAI-compatible API
+(`SMBR_MODEL_BACKEND=openai`). The latency budget is a per-installation
+property, so the baseline measures time-per-task instead of assuming
+one. Guidance for picking `SMBR_MODEL`:
 
 | RAM class | Model class | Why |
 | --- | --- | --- |

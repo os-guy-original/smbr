@@ -18,8 +18,25 @@ from smbr.decisions.provider import (
 
 
 def build_completion_client(settings: Settings) -> CompletionClient:
-    """The local model backend (Ollama or any OpenAI-compatible local server)."""
-    if settings.decision_provider == "llamacpp":
+    """The model backend: a local server (Ollama, llama.cpp) or an OpenAI-compatible API."""
+    backend = settings.model_backend
+    if backend == "openai":
+        from smbr.model.openai_client import OpenAICompletionClient
+
+        if not settings.api_key:
+            msg = (
+                "model_backend='openai' needs an API key: set SMBR_API_KEY "
+                "(or OPENAI_API_KEY) in the environment"
+            )
+            raise ValueError(msg)
+        return OpenAICompletionClient(
+            model=settings.model,
+            api_key=settings.api_key,
+            base_url=settings.api_base_url,
+            timeout=settings.model_timeout,
+        )
+    # decision_provider='llamacpp' also selects the server (legacy setting)
+    if backend == "llamacpp" or settings.decision_provider == "llamacpp":
         from smbr.model.llamacpp_client import LlamaCppCompletionClient
 
         return LlamaCppCompletionClient(

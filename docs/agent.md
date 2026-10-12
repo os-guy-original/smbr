@@ -78,6 +78,11 @@ The loop never touches a terminal directly. Interrupts go through
 - llama.cpp server (OpenAI-compatible endpoint). **UNVERIFIED against a
   running server** — no server is available in CI; treat the first real run
   as verification.
+- Any OpenAI-compatible API (`SMBR_MODEL_BACKEND=openai` + `SMBR_API_KEY` +
+  `SMBR_API_BASE_URL`) — OpenRouter, OpenAI, Groq, Together, or a self-hosted
+  vLLM. No SDK dependency; the request asks for a `json_schema` response
+  format and retries with `json_object` on a provider that rejects it. This
+  is the option for machines without the RAM to serve a model locally.
 
 The kernel and gates import no backend. With `SMBR_DECISION_PROVIDER=off`,
 the decision layer is the disabled provider and SMBR asks the user every

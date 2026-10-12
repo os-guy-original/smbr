@@ -10,9 +10,9 @@ at a time, and the harness decides whether that step may happen.
 
 > **Status: working loop.** Kernel, gates, preflight, clarification, decision
 > layer, the wired agent loop and the Phase 0 baseline are implemented and
-> tested. Real-model runs need a local server (`ollama pull gemma4:e4b`); the
-> test suite exercises the loop with scripted model stubs. See
-> [`docs/roadmap.md`](docs/roadmap.md).
+> tested. Real-model runs need a model — a local server (`ollama pull
+> gemma4:e4b`) or an OpenAI-compatible API key; the test suite exercises the
+> loop with scripted model stubs. See [`docs/roadmap.md`](docs/roadmap.md).
 
 ## The six principles
 
@@ -28,7 +28,8 @@ principle wins:
 4. **Bounded outputs.** The model answers in constrained JSON with fixed
    enums, so it cannot invent names or ramble.
 5. **Free and local-first.** Works with any locally served model; hosted
-   services are optional extras, never requirements.
+   APIs are an opt-in backend for machines that can't serve one — never a
+   requirement.
 6. **A frozen kernel judges; only a mutable layer improves.** The things that
    decide whether work is acceptable can never be edited by the system itself.
 
@@ -59,6 +60,21 @@ The project is hardware-agnostic: any model Ollama or llama.cpp can
 serve works. Pick one to match your RAM (see
 [`docs/roadmap.md`](docs/roadmap.md)) — the baseline measures
 time-per-task, so the latency budget is measured, not assumed.
+
+### No hardware for a local model?
+
+Point SMBR at any OpenAI-compatible API instead (OpenRouter, OpenAI,
+Groq, Together, a self-hosted vLLM — no extra dependency, just an API key):
+
+```bash
+export SMBR_MODEL_BACKEND=openai
+export SMBR_API_BASE_URL=https://openrouter.ai/api/v1   # default; swap per provider
+export SMBR_API_KEY=sk-or-...
+export SMBR_MODEL=qwen/qwen3-coder                       # any model the provider serves
+```
+
+Everything downstream is unchanged — same gates, same kernel, same
+constrained-JSON questions.
 
 Run one coding request through the harness — clarification, preflight, plan,
 gated edits, verification, grounded report:
@@ -123,7 +139,7 @@ src/smbr/
 ├── agent/      # the wired loop: model schemas, user port, backends
 ├── evals/      # Phase 0 baseline: task suite, runner, scoring
 ├── tui/        # Textual interface + modal screens for asks and approvals
-└── model/      # optional backends (ollama, llamacpp)
+└── model/      # optional backends (ollama, llamacpp, openai api)
 ```
 
 The `kernel/` package is the frozen kernel: gates, the evaluation suite and

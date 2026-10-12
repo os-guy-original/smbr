@@ -53,7 +53,11 @@ def _cmd_run(args: argparse.Namespace) -> int:
     from smbr.agent import CliUser, SmbrAgent, build_completion_client, build_decision_router
 
     settings = Settings(project_root=Path.cwd())
-    client = build_completion_client(settings)
+    try:
+        client = build_completion_client(settings)
+    except ValueError as exc:  # e.g. openai backend without an API key
+        print(f"smbr: {exc}", file=sys.stderr)
+        return 2
     router = build_decision_router(settings, client)
     agent = SmbrAgent(settings=settings, client=client, user=CliUser(), router=router)
     result = agent.run(args.request)

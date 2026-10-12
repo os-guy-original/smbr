@@ -7,16 +7,22 @@ from the model.
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
-from pydantic import Field
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+#: Model backends: two local servers plus any OpenAI-compatible API.
+BACKENDS = ("ollama", "llamacpp", "openai")
 
 
 class Settings(BaseSettings):
     """SMBR configuration. Environment prefix: ``SMBR_``."""
 
-    model_config = SettingsConfigDict(env_prefix="SMBR_", env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_prefix="SMBR_", env_file=".env", extra="ignore", populate_by_name=True
+    )
 
     # Decision layer
     decision_layer_enabled: bool = True
@@ -25,11 +31,16 @@ class Settings(BaseSettings):
         default_factory=lambda: {"web backend": "Python, FastAPI, SQLite"}
     )
 
-    # Model backend (any Ollama/llama.cpp-served model; constrained JSON via
-    # Ollama's structured outputs)
+    # Model backend (any Ollama/llama.cpp-served local model, or any
+    # OpenAI-compatible API for machines without the RAM to serve one)
+    model_backend: str = "ollama"  # ollama | llamacpp | openai
     model: str = "gemma4:e4b"
     model_host: str | None = None
     model_timeout: float = Field(default=300.0, gt=0)
+    api_key: str | None = Field(
+        default=None, description="API key for the openai backend (SMBR_API_KEY)"
+    )
+    api_base_url: str = "https://openrouter.ai/api/v1"  # must include the version prefix
 
     # Opt-in MCP servers: JSON config ({"mcpServers": {...}}), empty disables
     mcp_config: str = ".smbr/mcp.json"
@@ -44,6 +55,23 @@ class Settings(BaseSettings):
     test_command: str = "pytest"
     lint_command: str = "ruff check"
     typecheck_command: str = ""
+
+    @field_validator("model_backend")
+    @classmethod
+    def _known_backend(cls, value: str) -> str:
+        """An unknown backend fails loudly, not by silently falling back."""
+        backend = value.strip().lower()
+        if backend not in BACKENDS:
+            msg = f"unknown model_backend {value!r}; expected one of {', '.join(BACKENDS)}"
+            raise ValueError(msg)
+        return backend
+
+    @model_validator(mode="after")
+    def _fill_api_key(self) -> Settings:
+        """OPENAI_API_KEY is the fallback when SMBR_API_KEY is unset."""
+        if not self.api_key:
+            self.api_key = os.environ.get("OPENAI_API_KEY") or None
+        return self
 
     @property
     def required_checks(self) -> tuple[str, ...]:

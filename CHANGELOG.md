@@ -8,6 +8,16 @@ adheres to semantic versioning.
 
 ### Added
 
+- **OpenAI-compatible API backend** (`smbr/model/openai_client.py`) — the same
+  constrained-JSON model calls against any hosted chat-completions endpoint
+  (OpenRouter, OpenAI, Groq, Together, a self-hosted vLLM), so a machine
+  without the RAM to serve a local model is not locked out. Selected with
+  `SMBR_MODEL_BACKEND=openai` plus `SMBR_API_KEY` (`OPENAI_API_KEY` is the
+  fallback) and `SMBR_API_BASE_URL`; no SDK dependency, a missing key fails
+  loudly, the schema goes out in strict `json_schema` form so providers with
+  a native strict mode enforce it, and a provider that rejects that gets a
+  `json_object` retry with the schema moved into the prompt. Same gates,
+  same kernel.
 - **Opt-in MCP servers** (`smbr/mcp/`) — a stdio JSON-RPC client (initialize
   handshake, `tools/list`, `tools/call`, no SDK dependency), the standard
   `mcpServers` config format (`.smbr/mcp.json`), and one registry tool per
