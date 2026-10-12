@@ -36,6 +36,10 @@ evaluation — tasks the system never sees during tuning.
 4. **Opt-in MCP servers** (`mcp/`) — a stdio JSON-RPC client, the config
    loader, and one registry tool per enabled server. Remote tools ride the
    same registry, health check, per-step exposure and gates as built-ins.
+5. **Imports** (`imports/`) — readers for other agents' MCP configs and
+   skills. The wrapper key is auto-detected, so an agent SMBR has never
+   seen still imports when its file is passed with `--path`; everything
+   lands disabled and inert, because imported content is untrusted text.
 
 ## Model backends
 

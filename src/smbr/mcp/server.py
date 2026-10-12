@@ -18,9 +18,9 @@ class McpServerTool:
     name = "mcp"
     capability = Capability.MCP
 
-    def __init__(self, config, timeout: float = 30.0) -> None:
+    def __init__(self, config, timeout: float | None = None) -> None:
         self.config = config
-        self.timeout = timeout
+        self.timeout = config.timeout if timeout is None else timeout
 
     @property
     def server_name(self) -> str:

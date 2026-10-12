@@ -80,15 +80,27 @@ class ToolRegistry:
         return {cap: tool.health() for cap, tool in self._tools.items()}
 
     def expose(self, step: Step) -> list[str]:
-        """Tool names relevant to the current step — never the full list."""
+        """Tool names relevant to the current step — never the full list.
+
+        Built-ins come first, then MCP names in sorted order, capped at
+        ``MAX_EXPOSED_TOOLS``: a long list is the exact failure mode
+        per-step exposure exists to prevent, and one verbose MCP server
+        should not blow the budget the state machine set.
+        """
         wanted = STEP_TOOLS[step]
         names = [
             t.name for cap, t in self._tools.items() if cap in wanted and cap is not Capability.MCP
         ]
         if Capability.MCP in wanted:
             names.extend(sorted(self._mcp))
-        return sorted(names)
+        return sorted(names[:MAX_EXPOSED_TOOLS])
 
+
+#: The per-step exposure budget. The design doc's 3-5 guidance assumes the
+#: curated core; one verbose MCP server must not blow the budget, so the
+#: list is capped here and every name is still callable through the
+#: declared-capability gate when the step can see it.
+MAX_EXPOSED_TOOLS = 8
 
 # Per-step exposure. A long tool list makes small models pick the wrong tool,
 # so the state machine decides what the model sees (3-5 per step). Keys are the

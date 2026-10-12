@@ -31,11 +31,27 @@ class McpServerConfig:
     args: list[str] = field(default_factory=list)
     env: dict[str, str] = field(default_factory=dict)
     enabled: bool = True
+    # Per-server response budget. Both Claude and OpenCode carry a
+    # per-server ``timeout`` in milliseconds; anything >= 1000 is read
+    # as ms, smaller values as seconds, matching Claude's own rule.
+    timeout: float = 30.0
 
-    def client(self, timeout: float) -> McpStdioClient:
+    def client(self, timeout: float | None = None) -> McpStdioClient:
         from smbr.mcp.client import McpStdioClient
 
-        return McpStdioClient(self.command, self.args, self.env, timeout)
+        return McpStdioClient(
+            self.command, self.args, self.env, timeout if timeout is not None else self.timeout
+        )
+
+
+def _server_timeout(spec: dict, name: str) -> float:
+    raw = spec.get("timeout")
+    if isinstance(raw, (int, float)) and not isinstance(raw, bool) and raw > 0:
+        return float(raw) / 1000.0 if raw >= 1000 else float(raw)
+    if raw is not None:
+        msg = f"{name}: 'timeout' must be a positive number"
+        raise McpConfigError(msg)
+    return 30.0
 
 
 def load_mcp_config(path: str | Path) -> list[McpServerConfig]:
@@ -64,12 +80,21 @@ def load_mcp_config(path: str | Path) -> list[McpServerConfig]:
             raise McpConfigError(msg)
         if spec.get("enabled", True) is False:
             continue
+        raw_env = spec.get("env", {})
+        if not isinstance(raw_env, dict):
+            msg = f"{config_path}: server '{name}' has a non-object 'env'"
+            raise McpConfigError(msg)
+        raw_args = spec.get("args", [])
+        if not isinstance(raw_args, list):
+            msg = f"{config_path}: server '{name}' has a non-list 'args'"
+            raise McpConfigError(msg)
         configs.append(
             McpServerConfig(
                 name=name,
                 command=spec["command"],
-                args=[str(a) for a in spec.get("args", [])],
-                env={str(k): str(v) for k, v in spec.get("env", {}).items()},
+                args=[str(a) for a in raw_args],
+                env={str(k): str(v) for k, v in raw_env.items()},
+                timeout=_server_timeout(spec, str(name)),
             )
         )
     return configs

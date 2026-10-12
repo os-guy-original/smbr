@@ -46,6 +46,10 @@ class Settings(BaseSettings):
     mcp_config: str = ".smbr/mcp.json"
     mcp_timeout: float = Field(default=30.0, gt=0)
 
+    # Imported skills: inert data under .smbr/, with a provenance manifest.
+    # Imported skills are untrusted text, so nothing is enabled by import.
+    skills_dir: str = ".smbr/skills"
+
     # Loop budgets
     max_edit_attempts: int = Field(default=3, ge=1, le=10)
     questions_per_round: int = Field(default=3, ge=1, le=5)

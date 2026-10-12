@@ -10,6 +10,9 @@ from __future__ import annotations
 
 import json
 import sys
+import textwrap
+import time
+from pathlib import Path
 
 import pytest
 
@@ -17,7 +20,7 @@ from smbr.config import Settings
 from smbr.kernel.state import Step
 from smbr.mcp import McpConfigError, McpServerTool, load_mcp_config
 from smbr.preflight.capabilities import Capability
-from smbr.tools.registry import ToolRegistry
+from smbr.tools.registry import MAX_EXPOSED_TOOLS, ToolRegistry
 
 
 def test_client_handshake_list_and_call(fake_server) -> None:
@@ -148,3 +151,140 @@ def test_settings_default_mcp_path() -> None:
     settings = Settings()
     assert settings.mcp_config == ".smbr/mcp.json"
     assert settings.mcp_timeout > 0
+
+
+# -- stability: a misbehaving server must fail, never wedge the run -------
+
+HANGING_SERVER = textwrap.dedent(
+    """
+    import json
+    import sys
+    import time
+
+    for line in sys.stdin:
+        time.sleep(60)
+    """
+)
+
+NOISY_SERVER = textwrap.dedent(
+    """
+    import json
+    import sys
+
+    for line in sys.stdin:
+        message = json.loads(line)
+        if message.get("method") == "initialize":
+            # a server-initiated notification first: the client must skip it
+            print(json.dumps({"jsonrpc": "2.0", "method": "notifications/progress",
+                              "params": {"token": "x"}}), flush=True)
+            print(json.dumps({"jsonrpc": "2.0", "id": message["id"], "result": {
+                "protocolVersion": "2025-06-18",
+                "serverInfo": {"name": "noisy", "version": "0"},
+            }}), flush=True)
+        elif message.get("method") == "tools/list":
+            print(json.dumps({"jsonrpc": "2.0", "id": message["id"], "result": {
+                "tools": []}}), flush=True)
+    """
+)
+
+ECHO_ENV_SERVER = textwrap.dedent(
+    """
+    import json
+    import os
+    import sys
+
+    for line in sys.stdin:
+        message = json.loads(line)
+        if message.get("method") == "initialize":
+            print(json.dumps({"jsonrpc": "2.0", "id": message["id"], "result": {
+                "protocolVersion": "2025-06-18",
+                "serverInfo": {"name": os.environ.get("ECHO_ME", "?"), "version": "0"},
+            }}), flush=True)
+    """
+)
+
+
+def _script(tmp_path, body: str) -> Path:
+    path = tmp_path / "server.py"
+    path.write_text(body, encoding="utf-8")
+    return path
+
+
+def test_a_hanging_server_fails_instead_of_wedging(tmp_path) -> None:
+    from smbr.mcp import McpStdioClient
+
+    client = McpStdioClient(sys.executable, [str(_script(tmp_path, HANGING_SERVER))], timeout=0.5)
+    started = time.monotonic()
+    available, detail = client.health()
+    elapsed = time.monotonic() - started
+    assert available is False
+    assert "did not respond" in detail
+    assert elapsed < 5  # bounded by the timeout, not by the server's sleep
+
+
+def test_notifications_between_request_and_response_are_skipped(tmp_path) -> None:
+    from smbr.mcp import McpStdioClient
+
+    client = McpStdioClient(sys.executable, [str(_script(tmp_path, NOISY_SERVER))], timeout=10)
+    try:
+        client.open()
+        assert client.initialize()["serverInfo"]["name"] == "noisy"
+        assert client.list_tools() == []
+    finally:
+        client.close()
+
+
+def test_env_references_are_expanded_at_spawn_time(tmp_path, monkeypatch) -> None:
+    from smbr.mcp import McpStdioClient
+    from smbr.mcp.client import expand_env
+
+    monkeypatch.setenv("SMBR_TEST_TOKEN", "secret-value")
+    assert expand_env("${SMBR_TEST_TOKEN}", {"SMBR_TEST_TOKEN": "v"}) == "v"
+    assert expand_env("${SMBR_TEST_TOKEN:-fallback}", {}) == "fallback"
+    assert expand_env("${MISSING}", {}) == "${MISSING}"  # stays literal
+
+    script = _script(tmp_path, ECHO_ENV_SERVER)
+    client = McpStdioClient(
+        sys.executable, [str(script)], env={"ECHO_ME": "${SMBR_TEST_TOKEN}"}, timeout=10
+    )
+    try:
+        client.open()
+        # the server reports what it received; the reference is gone
+        assert client.initialize()["serverInfo"]["name"] == "secret-value"
+    finally:
+        client.close()
+
+
+def test_oversized_message_is_refused(tmp_path, monkeypatch) -> None:
+    from smbr.mcp import McpStdioClient
+
+    script = _script(
+        tmp_path,
+        "import sys\n"
+        "sys.stdout.write('x' * 100)\n"
+        "sys.stdout.flush()\n"
+        "for line in sys.stdin:\n"
+        "    pass\n",
+    )
+    monkeypatch.setattr("smbr.mcp.client.MAX_MESSAGE_BYTES", 16)
+    client = McpStdioClient(sys.executable, [str(script)], timeout=5)
+    available, detail = client.health()  # health never raises; it reports
+    assert available is False
+    assert "without a newline" in detail
+
+
+def test_a_verbose_server_cannot_blow_the_exposure_budget(fake_server) -> None:
+    from smbr.mcp.config import McpServerConfig
+    from smbr.tools.files import ReadFileTool
+
+    registry = ToolRegistry()
+    registry.register(ReadFileTool())
+    server = McpServerTool(
+        McpServerConfig(name="fake", command=sys.executable, args=[str(fake_server)]), timeout=10
+    )
+    registry.register_mcp(server)
+    # simulate a server advertising many tools
+    registry._mcp.update({f"tool{i}": server for i in range(20)})
+    exposed = registry.expose(Step.EDIT)
+    assert len(exposed) <= MAX_EXPOSED_TOOLS
+    assert "file_read" in exposed  # built-ins are never crowded out

@@ -8,6 +8,19 @@ adheres to semantic versioning.
 
 ### Added
 
+- **Imports from other agents** (`smbr/imports/`) — `smbr import scan` reports
+  the MCP servers and skills other agents already have on this machine;
+  `smbr import mcp` writes them to `.smbr/mcp.json` disabled, and
+  `smbr import skills` copies skills with a sha256 provenance manifest.
+  Readers cover OpenCode (`mcp` key, argv arrays, JSONC, per-server
+  timeouts, `~/.claude.json`-style project scoping), Claude Code (`.mcp.json`,
+  user scope), VS Code/Copilot (`servers` key), and any file passed with
+  `--path` — the wrapper is auto-detected, so an unknown agent still imports.
+  Anything unimportable (remote transports, disabled entries) is reported,
+  never silently dropped.
+- **Per-step exposure budget** — `MAX_EXPOSED_TOOLS` caps the tool names a
+  step exposes, so one verbose MCP server cannot blow the 3-5 guidance that
+  per-step exposure exists to enforce.
 - **OpenAI-compatible API backend** (`smbr/model/openai_client.py`) — the same
   constrained-JSON model calls against any hosted chat-completions endpoint
   (OpenRouter, OpenAI, Groq, Together, a self-hosted vLLM), so a machine

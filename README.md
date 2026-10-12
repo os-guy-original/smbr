@@ -117,7 +117,37 @@ A server's tools are registered under the `mcp` capability, so preflight
 health-checks them like any built-in and the model must declare `mcp` in its
 manifest to call them. The model reaches them through the same tool-call
 channel as built-ins (see [`docs/agent.md`](docs/agent.md)) — nothing is
-exposed all at once.
+exposed all at once, and per-step exposure is capped so one verbose server
+can't blow the list.
+
+### Importing from other agents
+
+If you already run OpenCode, Claude Code, VS Code/Copilot, or anything else
+that writes a `mcpServers` / `servers` / `mcp` config, SMBR reads those
+instead of making you re-type them. Look first — nothing is written:
+
+```bash
+smbr import scan
+```
+
+Then import. Everything lands **disabled and inert**: MCP servers go into
+`.smbr/mcp.json` with `enabled: false`, and you flip each one on after review.
+
+```bash
+smbr import mcp                          # every known source on this machine
+smbr import mcp --from opencode          # one source
+smbr import mcp --path ~/.cursor/mcp.json  # a file SMBR has never seen
+smbr import skills                       # copy skills from the other agents
+smbr skills                              # what was imported, with provenance
+```
+
+The reader auto-detects the wrapper key and handles OpenCode's argv arrays,
+JSONC comments, per-server timeouts (Claude/OpenCode's milliseconds), and
+Claude's `~/.claude.json` project scoping. Anything it cannot import — a
+remote HTTP/SSE server, a disabled entry — is **reported, never silently
+dropped**. Imported skills are untrusted text, so they are copied as inert
+data with a sha256 provenance manifest and run under the same gates as
+everything else.
 
 Run the TUI:
 
@@ -135,6 +165,7 @@ src/smbr/
 ├── decisions/  # DecisionProvider protocol, constrained-JSON fallback, router
 ├── tools/      # files, search, tree-sitter symbols, patch apply, pytest/ruff, git
 ├── mcp/        # opt-in MCP servers: stdio client, config, registry tool
+├── imports/    # read MCP servers and skills from other agents' configs
 ├── hygiene/    # tree-sitter comment checks on added comments
 ├── agent/      # the wired loop: model schemas, user port, backends
 ├── evals/      # Phase 0 baseline: task suite, runner, scoring

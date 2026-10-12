@@ -2,7 +2,9 @@
 
 ``smbr preflight`` checks a capability manifest against the real tool
 registry. ``smbr run`` drives one request through the kernel with a local
-model. ``smbr eval`` runs the Phase 0 baseline. ``smbr tui`` launches the
+model. ``smbr eval`` runs the Phase 0 baseline. ``smbr import`` brings
+MCP servers and skills in from other agents, disabled and inert.
+``smbr skills`` lists what was imported. ``smbr tui`` launches the
 interface.
 """
 
@@ -26,6 +28,18 @@ from smbr.tools.registry import default_registry
 def _cmd_version(_: argparse.Namespace) -> int:
     print(f"smbr {__version__}")
     return 0
+
+
+def _cmd_import(args: argparse.Namespace) -> int:
+    from smbr.imports import cli_entry
+
+    return cli_entry.run_import(args)
+
+
+def _cmd_skills(args: argparse.Namespace) -> int:
+    from smbr.imports import cli_entry
+
+    return cli_entry.run_skills(args)
 
 
 def _cmd_preflight(args: argparse.Namespace) -> int:
@@ -103,6 +117,39 @@ def build_parser() -> argparse.ArgumentParser:
     ev = sub.add_parser("eval", help="run the Phase 0 evaluation baseline")
     ev.add_argument("eval_args", nargs=argparse.REMAINDER, help="arguments for the eval runner")
     ev.set_defaults(func=_cmd_eval)
+
+    imp = sub.add_parser("import", help="import MCP servers or skills from other agents")
+    imp.add_argument(
+        "what",
+        choices=("scan", "mcp", "skills"),
+        help="scan reports what is available; mcp and skills write it to disk",
+    )
+    imp.add_argument(
+        "--from",
+        dest="sources",
+        action="append",
+        default=[],
+        help="source agent(s) to read (repeatable; default: every known source)",
+    )
+    imp.add_argument(
+        "--path",
+        dest="paths",
+        action="append",
+        default=[],
+        help="explicit config or skill-root path (repeatable)",
+    )
+    imp.add_argument(
+        "--force", action="store_true", help="replace existing entries on a name conflict"
+    )
+    imp.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="report what would happen without writing anything",
+    )
+    imp.set_defaults(func=_cmd_import)
+
+    skl = sub.add_parser("skills", help="list imported skills with their provenance")
+    skl.set_defaults(func=_cmd_skills)
 
     sub.add_parser("tui", help="launch the TUI").set_defaults(func=_cmd_tui)
     return parser

@@ -5,20 +5,46 @@ format the Model Context Protocol defines for stdio servers
 (initialize, then tools/list and tools/call). No MCP SDK: the
 protocol is small and a subprocess plus two pipes is all it needs,
 which keeps the dependency surface at zero.
+
+Stability rules the transport owes the caller: every read is bounded
+by the timeout (a hung server fails, it does not wedge the run), a
+message has a size cap, and ``${VAR}`` / ``${VAR:-default}`` are
+expanded at spawn time so secrets never touch the config file.
 """
 
 from __future__ import annotations
 
 import json
 import os
+import re
+import select
 import subprocess
+import time
 from collections.abc import Mapping
 
 PROTOCOL_VERSION = "2025-06-18"
 
+# A response larger than this is a broken or hostile server, not a
+# legitimate tool result.
+MAX_MESSAGE_BYTES = 8 * 1024 * 1024
+
+_ENV_REF = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)(?::-([^}]*))?\}")
+
 
 class McpError(RuntimeError):
     """The server misbehaved. The message is safe to show the user."""
+
+
+def expand_env(value: str, environ: Mapping[str, str]) -> str:
+    """Expand ``${VAR}`` and ``${VAR:-default}``; unknown vars stay literal."""
+
+    def replace(match: re.Match) -> str:
+        name, default = match.group(1), match.group(2)
+        if name in environ:
+            return environ[name]
+        return default if default is not None else match.group(0)
+
+    return _ENV_REF.sub(replace, value)
 
 
 class McpStdioClient:
@@ -36,6 +62,7 @@ class McpStdioClient:
         self.env = dict(env or {})
         self.timeout = timeout
         self._proc: subprocess.Popen | None = None
+        self._buffer = b""
         self._request_id = 0
 
     def initialize(self) -> dict:
@@ -103,27 +130,74 @@ class McpStdioClient:
 
     def _start(self) -> None:
         merged = {**os.environ, **self.env}
+        argv = [expand_env(part, merged) for part in (self.command, *self.args)]
         self._proc = subprocess.Popen(  # the user configures the server command
-            [self.command, *self.args],
+            argv,
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL,
-            env=merged,
-            text=True,
+            env={k: expand_env(v, merged) for k, v in merged.items()},
         )
+        self._buffer = b""
 
     def _send(self, message: dict) -> None:
         assert self._proc is not None and self._proc.stdin is not None
-        self._proc.stdin.write(json.dumps(message) + "\n")
+        payload = json.dumps(message).encode("utf-8") + b"\n"
+        self._proc.stdin.write(payload)
         self._proc.stdin.flush()
 
     def _recv(self) -> dict:
-        assert self._proc is not None and self._proc.stdout is not None
-        line = self._proc.stdout.readline()
+        line = self._read_line()
         if not line:
             msg = "server closed the connection"
             raise McpError(msg)
-        return json.loads(line)
+        try:
+            return json.loads(line.decode("utf-8"))
+        except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+            msg = f"server sent a malformed message: {exc}"
+            raise McpError(msg) from exc
+
+    def _read_line(self) -> bytes:
+        """One newline-delimited message, bounded by the timeout.
+
+        Every read waits at most ``self.timeout`` seconds: a server that
+        stops answering fails the call instead of wedging the run.
+        """
+        proc = self._proc
+        assert proc is not None and proc.stdout is not None
+        while True:
+            newline = self._buffer.find(b"\n")
+            if newline >= 0:
+                line, self._buffer = self._buffer[:newline], self._buffer[newline + 1 :]
+                return line
+            if len(self._buffer) > MAX_MESSAGE_BYTES:
+                msg = f"server sent more than {MAX_MESSAGE_BYTES} bytes without a newline"
+                raise McpError(msg)
+            self._wait_readable(proc)
+            chunk = os.read(proc.stdout.fileno(), 65536)
+            if not chunk:
+                line, self._buffer = self._buffer, b""
+                return line
+            self._buffer += chunk
+
+    def _wait_readable(self, proc: subprocess.Popen) -> None:
+        """Block until stdout has bytes, or the timeout expires."""
+        deadline = time.monotonic() + self.timeout
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                msg = f"server did not respond within {self.timeout:.0f}s"
+                raise McpError(msg)
+            try:
+                ready, _, _ = select.select([proc.stdout], [], [], remaining)
+            except (OSError, ValueError):
+                # select cannot watch this handle (Windows pipes): fall back
+                # to a blocking read, correct but unbounded.
+                return
+            if ready:
+                return
+            msg = f"server did not respond within {self.timeout:.0f}s"
+            raise McpError(msg)
 
     def _request(self, method: str, params: dict) -> dict:
         """Send one request and read until its response arrives."""
