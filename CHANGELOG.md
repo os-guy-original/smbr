@@ -85,6 +85,13 @@ adheres to semantic versioning.
 
 ### Fixed
 
+- **TUI layout overlapped itself.** The request input was docked to the
+  bottom, so it sat on top of the footer, and the plan/log surfaces spilled
+  long lines past their panes. The layout is now a single stacked column
+  (header, the two panes, the request input, footer) with the panes taking
+  the remaining height, the plan and event surfaces wrapping instead of
+  spilling, and a geometry test at three terminal sizes that fails on any
+  partial overlap.
 - The patch tool's preview rejected every diff that **creates a file** (it
   pre-created an empty sandbox copy, so `git apply` refused), which made the
   agent loop silently skip new-file patches while `apply` accepted them. New
