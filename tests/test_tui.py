@@ -11,7 +11,7 @@ import asyncio
 import sys
 
 import pytest
-from textual.widgets import Button, Input, RichLog, Static
+from textual.widgets import Button, Input, OptionList, RichLog, Static
 
 from smbr.agent.demo import DEMO_FILE
 from smbr.tui import ApprovalScreen, QuestionScreen, SmbrApp
@@ -33,11 +33,13 @@ def _regions(app: SmbrApp) -> dict[str, tuple[int, int, int, int]]:
 
     out: dict[str, tuple[int, int, int, int]] = {}
     targets = [
-        ("left", app.query_one("#left")),
-        ("events", app.query_one("#events")),
+        ("sidebar", app.query_one("#sidebar")),
+        ("steps", app.query_one("#steps")),
         ("plan", app.query_one("#plan")),
+        ("events", app.query_one("#events")),
+        ("composer", app.query_one("#composer")),
         ("request", app.query_one("#request")),
-        ("step", app.query_one("#step")),
+        ("status", app.query_one("#status")),
         ("footer", app.query_one(Footer)),
     ]
     for name, widget in targets:
@@ -93,7 +95,7 @@ def test_demo_run_flows_through_every_screen(project) -> None:
             await pilot.pause()
             assert isinstance(app.query_one("#request", Input), Input)
             await _drive(app, pilot)
-            return str(app.query_one("#step", Static).content), _log_lines(app)
+            return app.step, _log_lines(app)
 
     app = SmbrApp(request="leave a demo note", demo=True)
     step, lines = asyncio.run(main(app))
@@ -104,7 +106,7 @@ def test_demo_run_flows_through_every_screen(project) -> None:
     assert any("[answer] approved: smbr-demo-note.txt" in line for line in lines)
     assert any("run started" in line for line in lines)
     assert any("patch_apply smbr-demo-note.txt -> diff applied" in line for line in lines)
-    assert step == "Step: done"
+    assert step == "done"
     # the approved patch really landed in the project
     assert (project / DEMO_FILE).exists()
 
@@ -312,3 +314,149 @@ def test_long_lines_wrap_instead_of_spilling(project) -> None:
     app = SmbrApp()
     # the log's width is fixed by the layout; a long line cannot widen it
     assert asyncio.run(main(app)) == 0
+
+
+# -- the slash-command interface -------------------------------------------
+
+
+def _option_ids(app: SmbrApp) -> list[str]:
+    return [str(option.id) for option in app.command_list.options]
+
+
+def test_typing_a_slash_opens_the_command_popup(project) -> None:
+    async def main(app: SmbrApp) -> list[str]:
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            app.query_one("#request", Input).value = "/s"
+            await pilot.pause()
+            return _option_ids(app)
+
+    app = SmbrApp()
+    ids = asyncio.run(main(app))
+    assert ids
+    assert "harness.status" in ids  # a name-prefix match, ranked first
+
+
+def test_the_popup_filters_as_you_type(project) -> None:
+    async def main(app: SmbrApp) -> list[str]:
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            app.query_one("#request", Input).value = "/mod"
+            await pilot.pause()
+            return _option_ids(app)
+
+    app = SmbrApp()
+    assert asyncio.run(main(app))[0] == "model.show"  # prefix ranks first
+
+
+def test_enter_runs_the_highlighted_command(project) -> None:
+    async def main(app: SmbrApp) -> list[str]:
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            app.query_one("#request", Input).value = "/clear"
+            await pilot.pause()
+            await pilot.press("enter")
+            await pilot.pause()
+            return list(app.events)
+
+    app = SmbrApp()
+    events = asyncio.run(main(app))
+    assert any("[answer] /clear" in e for e in events)
+    # the command's own answer survives the clear, so the log shows what ran
+    assert events == ["[answer] /clear"]
+
+
+def test_tab_completes_the_highlighted_command(project) -> None:
+    async def main(app: SmbrApp) -> str:
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            app.query_one("#request", Input).value = "/he"
+            await pilot.pause()
+            await pilot.press("tab")
+            await pilot.pause()
+            return str(app.query_one("#request", Input).value)
+
+    app = SmbrApp()
+    assert asyncio.run(main(app)) == "/help "
+
+
+def test_escape_closes_the_popup(project) -> None:
+    async def main(app: SmbrApp) -> tuple[bool, str]:
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            app.query_one("#request", Input).value = "/he"
+            await pilot.pause()
+            shown = app.commands_visible
+            await pilot.press("escape")
+            await pilot.pause()
+            return shown, str(app.query_one("#request", Input).value)
+
+    app = SmbrApp()
+    shown, value = asyncio.run(main(app))
+    assert shown is True
+    assert value == "/he"  # the typed text is not swallowed
+
+
+def test_an_unknown_command_is_refused_with_the_list(project) -> None:
+    async def main(app: SmbrApp) -> list[str]:
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            app.query_one("#request", Input).value = "/definitely-not-a-command"
+            await pilot.pause()
+            await pilot.press("enter")
+            await pilot.pause()
+            return list(app.events)
+
+    app = SmbrApp()
+    events = asyncio.run(main(app))
+    assert any("unknown command" in e for e in events)
+
+
+def test_the_palette_lists_every_command_and_runs_one(project) -> None:
+
+    async def main(app: SmbrApp) -> list[str]:
+        async with app.run_test() as pilot:
+            app.action_palette()
+            await pilot.pause()
+            labels = [str(o.prompt) for o in app.screen.query_one("#palette", OptionList).options]
+            await pilot.press("escape")
+            await pilot.pause()
+            return labels
+
+    app = SmbrApp()
+    labels = asyncio.run(main(app))
+    assert any("/help" in label for label in labels)
+    assert any("/quit" in label for label in labels)
+    # grouped by category, like the composer's palette
+    assert any("Harness" in label for label in labels)
+
+
+def test_slash_demo_runs_the_canned_flow(project) -> None:
+    async def main(app: SmbrApp) -> list[str]:
+        async with app.run_test() as pilot:
+            app.query_one("#request", Input).value = "/demo"
+            await pilot.pause()
+            await pilot.press("enter")
+            await _drive(app, pilot)
+            return list(app.events)
+
+    app = SmbrApp()
+    events = asyncio.run(main(app))
+    assert any("[answer] /demo" in e for e in events)
+    assert any("run started" in e for e in events)
+    assert (project / DEMO_FILE).exists()
+
+
+def test_the_sidebar_marks_the_current_step(project) -> None:
+    async def main(app: SmbrApp) -> list[str]:
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            app.begin_step("preflight")
+            await pilot.pause()
+            return [str(s) for s in app.query_one("#steps", RichLog).lines]
+
+    app = SmbrApp()
+    lines = asyncio.run(main(app))
+    joined = "\n".join(lines)
+    assert "intake" in joined
+    assert "preflight" in joined

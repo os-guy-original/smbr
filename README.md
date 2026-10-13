@@ -155,14 +155,30 @@ Run the TUI:
 smbr tui
 ```
 
-The TUI takes a request in the bottom input (Enter runs it). The screen is
-built to answer three questions at a glance — *where is the run*, *what just
-happened to it*, *what is being asked of me*:
+The interface is laid out like a modern agent TUI: a **sidebar** showing the
+kernel's steps with their state and the live plan, the **transcript** in the
+main pane, and a bordered **composer** at the bottom. Every message carries
+its kind — tools dim, gate passes green, gate failures and refusals red,
+questions yellow, overrides magenta, the final line bold.
 
-- **Status line** — current step, plan progress (`edit 1/2`), running/idle, elapsed time, model, `q` to quit.
-- **Left pane** — the current step and the plan.
-- **Transcript** — every harness message, styled by what it means: tools dim, gate passes green, gate failures and refusals red, questions yellow, overrides magenta, the final line bold.
-- **Modals** — keyboard-first: number keys pick a clarification option, `a` approves a patch, `r` rejects it. The approval screen scrolls and colourises the diff (`+` green / `-` red) with a `+added −removed` summary and any hygiene findings.
+### Commands
+
+Type `/` in the composer to open the command popup — it filters as you type,
+arrows move, Tab completes, Enter runs:
+
+| Command | What it does |
+| --- | --- |
+| `/help` | key bindings and what the harness enforces |
+| `/model` | the configured backend and model |
+| `/status` | kernel, session and override state |
+| `/gates` | the gates that decide what may happen |
+| `/tools` | tools exposed at the current step |
+| `/import` | scan other agents' MCP servers and skills |
+| `/demo` | re-run the flow on the canned model |
+| `/new` | start a fresh run |
+| `/clear` | clear the transcript |
+| `/palette` | every command, grouped (same as Ctrl+P) |
+| `/quit` | leave the interface |
 
 To try the whole flow without a model server, the demo mode drives a canned
 model through clarification, preflight, a patch approval, verification and a
@@ -173,9 +189,8 @@ smbr tui --demo                      # auto-runs; click through the screens
 smbr tui --request "leave a note"    # start a specific request on launch
 ```
 
-The demo leaves one disposable `smbr-demo-note.txt` in the project root.
-Without `--demo` a run uses the configured backend, so it needs a model
-(Ollama, llama.cpp, or an API key from the section above).
+Questions are answered with the number keys (or the mouse); patch approvals
+with `a` (approve) and `r` (reject), with a scrolling, colourised diff.
 
 ## Layout
 

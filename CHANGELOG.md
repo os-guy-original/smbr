@@ -76,15 +76,18 @@ adheres to semantic versioning.
 
 ### Changed
 
-- **The TUI was rebuilt around what a user needs to see.** Every message now
-  carries its kind — tools dim, gate passes green, gate failures and refusals
-  red, questions yellow, overrides magenta, the final line bold — instead of
-  one undifferentiated log where a refusal looked like a tool result. A status
-  line shows the step, plan progress, running state, elapsed time and model;
-  step transitions are reported live by the agent (including `edit 1/2`), not
-  only at the end. The approval and question screens are keyboard-first
-  (`a`/`r`, number keys) and the diff scrolls, colourises and reports
-  `+added -removed`.
+- **The TUI is now an agent interface, not a log.** A sidebar shows the
+  kernel's steps with their state alongside the live plan, the transcript
+  occupies the main pane, and a bordered composer sits at the bottom — the
+  layout OpenCode-style agents use. Every message still carries its kind
+  (tools dim, passes green, refusals red, questions yellow, overrides
+  magenta), and the demo's disposable note file is unchanged.
+- **Slash commands.** `/` opens a command popup in the composer that filters
+  as you type, arrow-navigates, Tab-completes and Enter-runs; Ctrl+P opens the
+  full palette, grouped by category. The registry (`smbr/tui/commands.py`)
+  holds ten commands — help, model, status, gates, tools, import, demo, new,
+  clear, palette, quit — so a command exists in exactly one place, the way
+  OpenCode drives both surfaces from one keymap.
 
 - The verify step now runs the checks configured in Settings and feeds the real
   output into the repair prompt; with nothing configured, preflight reports

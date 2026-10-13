@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Protocol
+from typing import ClassVar, Protocol
 
 from smbr.kernel.state import Session
 
@@ -177,6 +177,17 @@ class DeclaredCapabilitiesGate:
 
 
 class GateRunner:
+    """Runs the gates; the templates live here, never in the model."""
+
+    GATE_NAMES: ClassVar[tuple[str, ...]] = (
+        "read_before_edit",
+        "symbol_check",
+        "verify_before_done",
+        "grounded_claims",
+        "comment_hygiene",
+        "declared_capabilities",
+    )
+
     """Applies gates in order, honoring logged user overrides."""
 
     def __init__(self, gates: Sequence[Gate]) -> None:
